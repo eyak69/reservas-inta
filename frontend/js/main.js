@@ -183,12 +183,11 @@ async function submitLogin() {
         const data = await res.json();
 
         if (res.status === 202 && data.pending) {
-            // Usuario pendiente de aprobación
             showPendingScreen(data.message);
         } else if (res.ok && data.token) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
-            checkAuth();
+            enterApp(data.user); // Login directo, sin re-verificar ni mostrar loader
         } else {
             showToast(data.message || 'Error al iniciar sesión');
         }
@@ -234,12 +233,11 @@ function handleCredentialResponse(response) {
         .then(res => res.json().then(body => ({ status: res.status, body })))
         .then(({ status, body }) => {
             if (status === 202 && body.pending) {
-                // Usuario nuevo o pendiente de aprobación — mostrar pantalla de espera
                 showPendingScreen(body.message);
             } else if (body.token) {
                 localStorage.setItem('token', body.token);
                 localStorage.setItem('user', JSON.stringify(body.user));
-                checkAuth();
+                enterApp(body.user); // Login directo, sin re-verificar ni mostrar loader
             } else {
                 showToast('Error en login: ' + (body.message || 'Error desconocido'), 'error');
             }
@@ -248,6 +246,28 @@ function handleCredentialResponse(response) {
             console.error(err);
             showToast('Error de conexión con Google.', 'error');
         });
+}
+
+// Entra a la app directamente tras login (sin loader, ya verificado por login)
+function enterApp(user) {
+    const authView = document.getElementById('auth-view');
+    const appView = document.getElementById('app-view');
+
+    authView.style.display = 'none';
+    appView.style.display = 'flex';
+
+    document.getElementById('user-avatar').src = user.avatar_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOHYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
+
+    const navUsers = document.getElementById('nav-users');
+    if (user.role === 'admin') {
+        navUsers.classList.remove('hidden');
+        navUsers.classList.add('flex');
+    } else {
+        navUsers.classList.add('hidden');
+        navUsers.classList.remove('flex');
+    }
+
+    navigate('dashboard');
 }
 
 // Verificación de estado de sesión
