@@ -821,6 +821,11 @@ async function submitReservation() {
     const start_time = `${date}T${start}:00`;
     const end_time = `${date}T${end}:00`;
 
+    if (new Date(start_time) >= new Date(end_time)) {
+        showToast("La hora de fin debe ser posterior a la de inicio.", 'error');
+        return;
+    }
+
     const token = localStorage.getItem('token');
     const btn = document.getElementById('btn-submit');
     btn.innerText = "Enviando...";

@@ -72,6 +72,11 @@ const getReservationsBySpace = async (req, res) => {
 const createReservation = async (req, res) => {
     const { space_id, start_time, end_time, comments } = req.body;
     const user_id = req.user.id;
+
+    if (new Date(start_time) >= new Date(end_time)) {
+        return res.status(400).json({ message: 'La hora de fin debe ser posterior a la de inicio.' });
+    }
+
     try {
         // Simple validación de superposición
         const checkSql = `
