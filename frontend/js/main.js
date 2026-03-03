@@ -273,6 +273,7 @@ async function checkAuth() {
                 // Usuario eliminado, deshabilitado o token inválido
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
+                document.documentElement.classList.remove('has-session');
                 if (loader) loader.classList.add('hidden');
                 authView.classList.remove('hidden');
                 if (res.status === 403) {
@@ -296,6 +297,7 @@ async function checkAuth() {
             console.warn('No se pudo verificar la sesión con el servidor:', e.message);
         }
 
+        document.documentElement.classList.remove('has-session');
         if (loader) loader.classList.add('hidden');
 
         const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -318,6 +320,7 @@ async function checkAuth() {
         const lastView = localStorage.getItem('activeView') || 'dashboard';
         navigate(lastView);
     } else {
+        document.documentElement.classList.remove('has-session');
         if (loader) loader.classList.add('hidden');
         authView.classList.remove('hidden');
         appView.classList.add('hidden');
