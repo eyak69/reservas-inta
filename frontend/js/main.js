@@ -314,7 +314,9 @@ async function checkAuth() {
             navUsers.classList.remove('flex');
         }
 
-        loadDashboard();
+        // Restaurar la última vista activa, o ir al dashboard por defecto
+        const lastView = localStorage.getItem('activeView') || 'dashboard';
+        navigate(lastView);
     } else {
         if (loader) loader.classList.add('hidden');
         authView.classList.remove('hidden');
@@ -326,11 +328,15 @@ async function checkAuth() {
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('activeView');
     checkAuth();
 }
 
 // Navegación Básica SPA
 function navigate(view) {
+    // Guardar la vista activa para restaurarla al recargar
+    localStorage.setItem('activeView', view);
+
     document.querySelectorAll('.nav-item').forEach(el => {
         el.classList.remove('text-primary');
         el.classList.add('text-slate-400');
