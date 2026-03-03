@@ -364,11 +364,11 @@ async function loadDashboard() {
     } catch (e) { console.error('Error fetching spaces:', e); }
 
     let spacesHtml = mySpaces.map(s => `
-        <div class="group relative h-48 rounded-xl overflow-hidden cursor-pointer" onclick="openModal(${s.id})">
-            <img class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+        <div class="group relative h-64 sm:h-72 rounded-2xl overflow-hidden cursor-pointer" onclick="openModal(${s.id})">
+            <img class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                  src="${s.image_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUyOTNiIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjOTRBMzI4IiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RXNwYWNpbzwvdGV4dD48L3N2Zz4='}" alt="${s.name}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUyOTNiIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjOTRBMzI4IiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RXNwYWNpbzwvdGV4dD48L3N2Zz4=''">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-            <div class="absolute bottom-0 left-0 right-0 p-4 glass-card border-0 border-t border-white/10 m-3 rounded-lg flex justify-between items-center">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 right-0 p-5 glass-card border-0 border-t border-white/10 m-3 rounded-xl flex justify-between items-center">
                 <div>
                     <p class="font-bold text-sm text-white">${s.name}</p>
                 </div>

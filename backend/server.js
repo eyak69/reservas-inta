@@ -18,6 +18,10 @@ const PORT = process.env.PORT || 3000;
 // Middleware de seguridad y utilidad
 app.use(helmet({
   contentSecurityPolicy: false, // CSP deshabilitado para permitir CDNs de JS (Google, Fullcalendar)
+  crossOriginOpenerPolicy: false, // Permite popups cross-origin (Google Sign-In)
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 app.use(cors());
 app.use(express.json());
