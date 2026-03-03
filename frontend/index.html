@@ -38,10 +38,28 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales-all.global.min.js'></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Script inline: oculta todo inmediatamente si hay sesión activa para evitar flash del login -->
+    <script>
+        if (localStorage.getItem('token')) {
+            document.addEventListener('DOMContentLoaded', function () {
+                var loader = document.getElementById('app-loader');
+                var authView = document.getElementById('auth-view');
+                if (loader) loader.classList.remove('hidden');
+                if (authView) authView.classList.add('hidden');
+            });
+        }
+    </script>
 </head>
 
 <body
     class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col gradient-mesh overflow-x-hidden">
+
+    <!-- Loader de verificación de sesión (evita flash del login al recargar) -->
+    <div id="app-loader"
+        class="hidden fixed inset-0 z-[100] bg-background-dark flex flex-col items-center justify-center gap-4">
+        <div class="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+        <p class="text-slate-400 text-sm font-medium animate-pulse">Cargando...</p>
+    </div>
 
     <!-- Auth View -->
     <div id="auth-view" class="h-screen w-screen flex flex-col items-center justify-center p-6 space-y-8 z-50">
