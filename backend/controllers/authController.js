@@ -33,6 +33,10 @@ const register = async (req, res) => {
         return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
     }
 
+    if (password.length < 6) {
+        return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres por seguridad.' });
+    }
+
     // Validar CAPTCHA
     try {
         const decoded = jwt.verify(captchaToken, JWT_SECRET);
