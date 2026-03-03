@@ -275,55 +275,14 @@ async function checkAuth() {
     const token = localStorage.getItem('token');
     const authView = document.getElementById('auth-view');
     const appView = document.getElementById('app-view');
-    const loader = document.getElementById('app-loader');
 
     if (token) {
-        // Ocultar todo inmediatamente y mostrar loader para evitar flash del login
-        authView.style.display = 'none';
-        appView.style.display = 'none';
-        if (loader) loader.style.display = 'flex';
-
-        // Verificar con el backend que el usuario sigue existiendo y activo
-        try {
-            const res = await fetch(`${API_URL}/users/profile`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) {
-                // Usuario eliminado, deshabilitado o token inválido
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                document.documentElement.classList.remove('has-session');
-                if (loader) loader.style.display = 'none';
-                authView.style.display = '';
-                if (res.status === 403) {
-                    showToast('Tu cuenta ha sido deshabilitada o eliminada.', 'error');
-                } else {
-                    showToast('Sesión expirada. Por favor iniciá sesión nuevamente.', 'error');
-                }
-                return;
-            }
-            // Actualizar datos del usuario con la respuesta fresca del servidor
-            const freshUser = await res.json();
-            localStorage.setItem('user', JSON.stringify({
-                id: freshUser.id,
-                name: freshUser.name,
-                email: freshUser.email,
-                role: freshUser.role,
-                avatar_url: freshUser.avatar_url
-            }));
-        } catch (e) {
-            // Si hay error de red, dejar pasar (evitar logout por desconexión temporal)
-            console.warn('No se pudo verificar la sesión con el servidor:', e.message);
-        }
-
-        document.documentElement.classList.remove('has-session');
-        if (loader) loader.style.display = 'none';
-
+        // Mostrar app inmediatamente (el CSS ya ocultó el auth-view via has-session)
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         authView.style.display = 'none';
         appView.style.display = 'flex';
 
-        document.getElementById('user-avatar').src = user.avatar_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOXYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
+        document.getElementById('user-avatar').src = user.avatar_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOHYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
 
         const navUsers = document.getElementById('nav-users');
         if (user.role === 'admin') {
@@ -334,12 +293,46 @@ async function checkAuth() {
             navUsers.classList.remove('flex');
         }
 
-        // Restaurar la última vista activa, o ir al dashboard por defecto
+        // Restaurar la última vista activa
         const lastView = localStorage.getItem('activeView') || 'dashboard';
         navigate(lastView);
-    } else {
+
+        // Verificar con el backend en segundo plano (no bloquea la UI)
         document.documentElement.classList.remove('has-session');
-        if (loader) loader.style.display = 'none';
+        try {
+            const res = await fetch(`${API_URL}/users/profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                // Token inválido o usuario eliminado/deshabilitado → logout silencioso
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('activeView');
+                authView.style.display = '';
+                appView.style.display = 'none';
+                if (res.status === 403) {
+                    showToast('Tu cuenta fue deshabilitada.', 'error');
+                } else {
+                    showToast('Sesión expirada. Iniciá sesión nuevamente.', 'error');
+                }
+                return;
+            }
+            // Actualizar datos frescos del usuario en localStorage
+            const freshUser = await res.json();
+            localStorage.setItem('user', JSON.stringify({
+                id: freshUser.id,
+                name: freshUser.name,
+                email: freshUser.email,
+                role: freshUser.role,
+                avatar_url: freshUser.avatar_url
+            }));
+        } catch (e) {
+            // Error de red — dejar pasar, el usuario sigue navegando
+            console.warn('Verificación de sesión omitida por error de red:', e.message);
+        }
+    } else {
+        // Sin token → mostrar login
+        document.documentElement.classList.remove('has-session');
         authView.style.display = '';
         appView.style.display = 'none';
     }
