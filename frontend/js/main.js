@@ -141,6 +141,33 @@ async function loadCaptcha() {
     }
 }
 
+// Muestra pantalla de espera de aprobación dentro del auth-view
+function showPendingScreen(message) {
+    const card = document.querySelector('#auth-view .glass-card');
+    card.innerHTML = `
+        <div class="flex flex-col items-center gap-6 text-center py-4">
+            <div class="relative">
+                <span class="material-symbols-outlined text-[72px] text-amber-400 animate-pulse">schedule</span>
+            </div>
+            <div>
+                <h2 class="text-2xl font-extrabold tracking-tight text-white">¡Cuenta creada!</h2>
+                <p class="text-sm text-slate-400 mt-3 leading-relaxed">${message}</p>
+            </div>
+            <div class="w-full p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-left">
+                <p class="text-xs text-amber-300 font-semibold flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">info</span>
+                    Próximo paso
+                </p>
+                <p class="text-xs text-slate-400 mt-1">Un administrador revisará tu solicitud y habilitará tu cuenta. Intentá ingresar más tarde.</p>
+            </div>
+            <button onclick="location.reload()"
+                class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95">
+                Volver al inicio
+            </button>
+        </div>
+    `;
+}
+
 async function submitLogin() {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
@@ -155,7 +182,10 @@ async function submitLogin() {
         });
         const data = await res.json();
 
-        if (res.ok) {
+        if (res.status === 202 && data.pending) {
+            // Usuario pendiente de aprobación
+            showPendingScreen(data.message);
+        } else if (res.ok && data.token) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
             checkAuth();
@@ -201,17 +231,23 @@ function handleCredentialResponse(response) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
-        .then(res => res.json())
-        .then(data => {
-            if (data.token) {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
+        .then(res => res.json().then(body => ({ status: res.status, body })))
+        .then(({ status, body }) => {
+            if (status === 202 && body.pending) {
+                // Usuario nuevo o pendiente de aprobación — mostrar pantalla de espera
+                showPendingScreen(body.message);
+            } else if (body.token) {
+                localStorage.setItem('token', body.token);
+                localStorage.setItem('user', JSON.stringify(body.user));
                 checkAuth();
             } else {
-                showToast('Error en login: ' + data.message);
+                showToast('Error en login: ' + (body.message || 'Error desconocido'), 'error');
             }
         })
-        .catch(err => console.error(err));
+        .catch(err => {
+            console.error(err);
+            showToast('Error de conexión con Google.', 'error');
+        });
 }
 
 // Verificación de estado de sesión
