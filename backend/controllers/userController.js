@@ -109,9 +109,32 @@ const toggleUserStatus = async (req, res) => {
     }
 };
 
+// Cambiar rol de un usuario entre "usuario" y "admin" (Solo Admin)
+const changeUserRole = async (req, res) => {
+    const { id } = req.params;
+    const adminId = req.user.id;
+
+    if (parseInt(id) === adminId) {
+        return res.status(403).json({ message: 'No puedes cambiar tu propio rol.' });
+    }
+
+    try {
+        const [rows] = await pool.query('SELECT role FROM users WHERE id = ?', [id]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+        const newRole = rows[0].role === 'admin' ? 'usuario' : 'admin';
+        await pool.query('UPDATE users SET role = ? WHERE id = ?', [newRole, id]);
+
+        res.json({ message: `Rol cambiado a "${newRole}" exitosamente.`, role: newRole });
+    } catch (error) {
+        res.status(500).json({ message: 'Error cambiando el rol del usuario', error: error.message });
+    }
+};
+
 module.exports = {
     googleLogin,
     getAllUsers,
     getProfile,
-    toggleUserStatus
+    toggleUserStatus,
+    changeUserRole
 };

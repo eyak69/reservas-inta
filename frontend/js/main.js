@@ -875,11 +875,13 @@ async function loadUsers() {
 }
 
 function renderUsers(users, container) {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
     let usersHtml = users.map(u => `
         <div class="glass-card p-4 rounded-xl shadow-lg border border-white/5 flex flex-col js-user-card" data-id="${u.id}">
             <div class="flex items-center gap-4 border-b border-white/5 pb-3 mb-3">
                 <div class="size-10 bg-slate-800 rounded-full overflow-hidden border border-slate-700 shrink-0">
-                    <img src="${u.avatar_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOXYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg=='}" alt="Avatar" class="w-full h-full object-cover">
+                    <img src="${u.avatar_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOHYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg=='}" alt="Avatar" class="w-full h-full object-cover">
                 </div>
                 <div class="flex-1 truncate">
                     <h3 class="font-bold text-sm text-white truncate">${u.name}</h3>
@@ -887,20 +889,28 @@ function renderUsers(users, container) {
                 </div>
                 <div class="shrink-0 flex flex-col items-end gap-1">
                     <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${u.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-slate-700 text-slate-300'}">${u.role}</span>
-                    <span class="text-[10px] lowercase font-bold ${u.is_active ? 'text-green-400' : 'text-red-400'} flex items-center gap-1">
-                        <span class="size-1.5 rounded-full ${u.is_active ? 'bg-green-400' : 'bg-red-400'}"></span>
-                        ${u.is_active ? 'Activo' : 'Suspendido'}
+                    <span class="text-[10px] lowercase font-bold ${u.is_active ? 'text-green-400' : 'text-amber-400'} flex items-center gap-1">
+                        <span class="size-1.5 rounded-full ${u.is_active ? 'bg-green-400' : 'bg-amber-400'}"></span>
+                        ${u.is_active ? 'Activo' : 'Pendiente/Suspendido'}
                     </span>
                 </div>
             </div>
             
-            <div class="flex justify-end mt-1">
-                ${u.role !== 'admin' ? `
+            <div class="flex justify-end gap-2 mt-1 flex-wrap">
+                ${u.id !== currentUser.id ? `
                     <button onclick="toggleUserStatus(${u.id}, ${u.is_active})" class="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all 
-                        ${u.is_active ? 'border-red-500/30 text-red-500 hover:bg-red-500/10' : 'border-green-500/30 text-green-500 hover:bg-green-500/10'}">
-                        ${u.is_active ? '<span class="material-symbols-outlined text-[14px] align-middle mr-1">block</span>Suspender' : '<span class="material-symbols-outlined text-[14px] align-middle mr-1">check_circle</span>Reactivar'}
+                        ${u.is_active ? 'border-red-500/30 text-red-400 hover:bg-red-500/10' : 'border-green-500/30 text-green-400 hover:bg-green-500/10'}">
+                        ${u.is_active
+                ? '<span class="material-symbols-outlined text-[14px] align-middle mr-1">block</span>Suspender'
+                : '<span class="material-symbols-outlined text-[14px] align-middle mr-1">check_circle</span>Activar'}
                     </button>
-                ` : '<span class="text-xs text-slate-500 italic">No editable</span>'}
+                    <button onclick="changeUserRole(${u.id}, '${u.role}')" class="text-xs font-bold px-3 py-1.5 rounded-lg border transition-all
+                        ${u.role === 'admin' ? 'border-orange-500/30 text-orange-400 hover:bg-orange-500/10' : 'border-primary/30 text-primary hover:bg-primary/10'}">
+                        ${u.role === 'admin'
+                ? '<span class="material-symbols-outlined text-[14px] align-middle mr-1">person_remove</span>Quitar Admin'
+                : '<span class="material-symbols-outlined text-[14px] align-middle mr-1">admin_panel_settings</span>Hacer Admin'}
+                    </button>
+                ` : '<span class="text-xs text-slate-500 italic">Tu cuenta</span>'}
             </div>
         </div>
     `).join('');
@@ -914,7 +924,7 @@ function renderUsers(users, container) {
 }
 
 async function toggleUserStatus(id, currentlyActive) {
-    const word = currentlyActive ? 'suspender' : 'reactivar';
+    const word = currentlyActive ? 'suspender' : 'activar';
     const ok = await showConfirm(`¿Estás seguro de ${word} este usuario?`);
     if (!ok) return;
 
@@ -931,6 +941,30 @@ async function toggleUserStatus(id, currentlyActive) {
         } else {
             const data = await res.json();
             showToast(data.message || 'Error al cambiar estado');
+        }
+    } catch (error) {
+        showToast('Error de red');
+    }
+}
+
+async function changeUserRole(id, currentRole) {
+    const newRoleLabel = currentRole === 'admin' ? 'usuario normal' : 'Administrador';
+    const ok = await showConfirm(`¿Querés cambiar el rol de este usuario a "${newRoleLabel}"?`);
+    if (!ok) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch(`${API_URL}/users/${id}/change-role`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast(data.message || 'Rol actualizado', 'success');
+            loadUsers();
+        } else {
+            showToast(data.message || 'Error al cambiar el rol');
         }
     } catch (error) {
         showToast('Error de red');
