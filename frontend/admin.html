@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b6cee",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#0a0f1a",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .bg-gradient-mesh {
+            background-color: #0a0f1a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(43, 108, 238, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(43, 108, 238, 0.1) 0px, transparent 50%),
+                radial-gradient(at 50% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+        }
+        .dashed-neon {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='%232B6CEEFF' stroke-width='2' stroke-dasharray='8%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+            border-radius: 24px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen bg-gradient-mesh">
+<div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
+<!-- Header / TopAppBar -->
+<div class="flex items-center px-6 py-8 justify-between">
+<button class="flex items-center gap-2 text-primary font-medium group">
+<span class="material-symbols-outlined text-2xl transition-transform group-active:-translate-x-1">arrow_back</span>
+<span class="text-sm uppercase tracking-widest">Volver</span>
+</button>
+<div class="flex size-10 items-center justify-center rounded-full bg-slate-800/50 border border-slate-700">
+<span class="material-symbols-outlined text-slate-400">more_vert</span>
+</div>
+</div>
+<div class="px-6 mb-6">
+<h1 class="text-3xl font-bold tracking-tight text-white">Nuevo Espacio</h1>
+<p class="text-slate-400 mt-1">Configuración del sistema INTA</p>
+</div>
+<!-- Main Form Glass Card -->
+<div class="px-4 pb-24">
+<div class="glass-panel rounded-xl p-6 shadow-2xl">
+<!-- Hero Image Placeholder / Preview -->
+<div class="mb-8">
+<div class="w-full aspect-video rounded-xl overflow-hidden relative group">
+<div class="absolute inset-0 bg-primary/10 flex flex-col items-center justify-center dashed-neon">
+<span class="material-symbols-outlined text-5xl text-primary/60 mb-2">cloud_upload</span>
+<p class="text-primary font-semibold">Subir imagen del espacio</p>
+<p class="text-slate-500 text-xs mt-1">PNG, JPG hasta 10MB</p>
+</div>
+<div class="hidden absolute inset-0 bg-cover bg-center" data-alt="Modern corporate conference room with glass walls" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC1vGavzugxrkL6V4aB1h5guqCi_v1tbWM7VMR1459GqQnnf8UoASUJxRBahf84chwf7wWvnFFdItBtqDM943LXU9AbLXfS09BoqK72N9fqoxrqlsGelKRbpvaOK4Rqj8wx9fPZWB519czMphVs_uMnI8Qpq8--NlaAM5VzBK96DlOk188f8sqmOucGxnGNSg2jVTLxrxJnbhZczl0O7BCcTp7a9BhOT6rUE_j4CWfDV9zyKER4RlfgIPMZjN02HRDhF_5URA0zlA')"></div>
+</div>
+</div>
+<!-- Form Fields -->
+<div class="space-y-6">
+<div class="flex flex-col gap-2">
+<label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Nombre del Espacio</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">meeting_room</span>
+<input class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-4 pl-12 pr-4 text-white focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none placeholder:text-slate-600" placeholder="Ej: Sala de Innovación A" type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Descripción</label>
+<textarea class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg p-4 text-white focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none placeholder:text-slate-600 resize-none" placeholder="Describa las características y equipamiento..." rows="4"></textarea>
+</div>
+<div class="flex items-center justify-between p-4 bg-slate-900/30 border border-slate-700/30 rounded-lg">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">groups</span>
+</div>
+<div>
+<p class="text-white font-medium">Capacidad</p>
+<p class="text-xs text-slate-500">Personas permitidas</p>
+</div>
+</div>
+<div class="flex items-center gap-4 bg-slate-800 rounded-full px-2 py-1 border border-slate-700">
+<button class="size-8 rounded-full flex items-center justify-center text-slate-300 active:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined text-lg">remove</span>
+</button>
+<span class="text-lg font-bold text-white min-w-[2ch] text-center">12</span>
+<button class="size-8 rounded-full flex items-center justify-center bg-primary text-white active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">add</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Ubicación (Sede)</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">location_on</span>
+<select class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-4 pl-12 pr-4 text-white focus:border-primary focus:ring-1 focus:ring-primary appearance-none outline-none">
+<option>Sede Central - Buenos Aires</option>
+<option>Delegación Córdoba</option>
+<option>Centro Regional Mendoza</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Action Button -->
+<div class="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background-dark via-background-dark/90 to-transparent">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-5 rounded-xl shadow-[0_8px_30px_rgb(43,108,238,0.4)] flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined">save</span>
+<span>GUARDAR ESPACIO</span>
+</button>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,121 @@
+/* Custom styles derived from Stitch Designs */
+.glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gradient-mesh {
+    background-color: #101622;
+    background-image:
+        radial-gradient(at 0% 0%, rgba(43, 108, 238, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(43, 108, 238, 0.1) 0px, transparent 50%);
+}
+
+.vibrant-bg {
+    background: radial-gradient(circle at top left, rgba(43, 108, 238, 0.2), transparent),
+        radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.2), transparent);
+}
+
+.neon-glow {
+    box-shadow: 0 0 15px rgba(43, 108, 238, 0.4);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Modal Animations */
+.modal-active {
+    display: flex !important;
+}
+
+.modal-slide-up {
+    transform: translateY(0) !important;
+}
+
+.dashed-neon {
+    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='%232B6CEEFF' stroke-width='2' stroke-dasharray='8%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+    border-radius: 24px;
+}
+
+/* Custom Alert & Confirm Animations */
+.toast-enter {
+    animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.toast-leave {
+    animation: fadeOutRight 0.3s ease-in forwards;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+.modal-scale-up {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+}
+
+/* FullCalendar Dark Theme Overrides */
+:root {
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: rgba(255, 255, 255, 0.05);
+    --fc-neutral-text-color: #94a3b8;
+    /* slate-400 */
+    --fc-border-color: rgba(255, 255, 255, 0.1);
+    --fc-button-text-color: #f1f5f9;
+    --fc-button-bg-color: rgba(30, 41, 59, 0.8);
+    /* slate-800 */
+    --fc-button-border-color: rgba(255, 255, 255, 0.1);
+    --fc-button-hover-bg-color: rgba(51, 65, 85, 0.8);
+    --fc-button-hover-border-color: rgba(255, 255, 255, 0.2);
+    --fc-button-active-bg-color: #2b6cee;
+    --fc-button-active-border-color: #2b6cee;
+    --fc-event-bg-color: #2b6cee;
+    --fc-event-border-color: #2b6cee;
+    --fc-today-bg-color: rgba(43, 108, 238, 0.1);
+}
+
+.fc .fc-toolbar-title {
+    color: #f8fafc;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+    border-color: var(--fc-border-color);
+}
