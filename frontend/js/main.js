@@ -248,26 +248,9 @@ function handleCredentialResponse(response) {
         });
 }
 
-// Entra a la app directamente tras login (sin loader, ya verificado por login)
+// Entra a la app directamente tras login
 function enterApp(user) {
-    const authView = document.getElementById('auth-view');
-    const appView = document.getElementById('app-view');
-
-    authView.style.display = 'none';
-    appView.style.display = 'flex';
-
-    document.getElementById('user-avatar').src = user.avatar_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOHYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
-
-    const navUsers = document.getElementById('nav-users');
-    if (user.role === 'admin') {
-        navUsers.classList.remove('hidden');
-        navUsers.classList.add('flex');
-    } else {
-        navUsers.classList.add('hidden');
-        navUsers.classList.remove('flex');
-    }
-
-    navigate('dashboard');
+    window.location.reload();
 }
 
 // Verificación de estado de sesión
@@ -342,7 +325,7 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('activeView');
-    checkAuth();
+    window.location.reload();
 }
 
 // Navegación Básica SPA
@@ -877,8 +860,10 @@ async function submitReservation() {
 }
 
 // Initialization
-window.addEventListener('load', () => {
+window.addEventListener('DOMContentLoaded', () => {
     checkAuth();
+    loadSpaces();
+    setupCalendar();
 });
 
 // ================= ADMIN USUARIOS =================
