@@ -259,10 +259,9 @@ async function checkAuth() {
 
     if (token) {
         // Ocultar todo inmediatamente y mostrar loader para evitar flash del login
-        authView.classList.add('hidden');
-        appView.classList.add('hidden');
-        appView.classList.remove('flex');
-        if (loader) loader.classList.remove('hidden');
+        authView.style.display = 'none';
+        appView.style.display = 'none';
+        if (loader) loader.style.display = 'flex';
 
         // Verificar con el backend que el usuario sigue existiendo y activo
         try {
@@ -274,8 +273,8 @@ async function checkAuth() {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 document.documentElement.classList.remove('has-session');
-                if (loader) loader.classList.add('hidden');
-                authView.classList.remove('hidden');
+                if (loader) loader.style.display = 'none';
+                authView.style.display = '';
                 if (res.status === 403) {
                     showToast('Tu cuenta ha sido deshabilitada o eliminada.', 'error');
                 } else {
@@ -298,12 +297,11 @@ async function checkAuth() {
         }
 
         document.documentElement.classList.remove('has-session');
-        if (loader) loader.classList.add('hidden');
+        if (loader) loader.style.display = 'none';
 
         const user = JSON.parse(localStorage.getItem('user') || '{}');
-        authView.classList.add('hidden');
-        appView.classList.remove('hidden');
-        appView.classList.add('flex');
+        authView.style.display = 'none';
+        appView.style.display = 'flex';
 
         document.getElementById('user-avatar').src = user.avatar_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOXYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
 
@@ -321,10 +319,9 @@ async function checkAuth() {
         navigate(lastView);
     } else {
         document.documentElement.classList.remove('has-session');
-        if (loader) loader.classList.add('hidden');
-        authView.classList.remove('hidden');
-        appView.classList.add('hidden');
-        appView.classList.remove('flex');
+        if (loader) loader.style.display = 'none';
+        authView.style.display = '';
+        appView.style.display = 'none';
     }
 }
 
