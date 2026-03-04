@@ -164,24 +164,25 @@ export function renderReservations(data, container, isAdmin) {
     const paginationHtml = `
         <div class="flex items-center justify-between px-2 mt-8 text-sm text-slate-400 font-bold border-t border-slate-800 pt-6">
             <div class="flex items-center gap-3">
-                <span class="opacity-70 font-mono">TOTAL: ${total}</span>
+                <span class="opacity-70">Total: ${total}</span>
                 <div class="h-4 w-px bg-slate-700 mx-1"></div>
-                <select onchange="changeReservationsLimit(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-300 outline-none focus:border-primary">
-                    ${[5, 10, 20, 50].map(v => `<option value="${v}" ${v === currentReservationsLimit ? 'selected' : ''}>${v} por pág</option>`).join('')}
+                <select onchange="changeReservationsLimit(this.value)" class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-slate-300 outline-none focus:border-primary">
+                    ${[5, 10, 20, 50].map(v => `<option value="${v}" ${v === currentReservationsLimit ? 'selected' : ''}>${v}</option>`).join('')}
+                </select>
+                <div class="hidden sm:flex h-4 w-px bg-slate-700 mx-1"></div>
+                <select onchange="loadReservations(parseInt(this.value))" class="hidden sm:block bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-slate-300 outline-none focus:border-primary">
+                    ${pageOptions || '<option value="1">Pág 1</option>'}
                 </select>
             </div>
             <div class="flex gap-2 items-center">
-                <span class="text-[10px] opacity-40 mr-2 uppercase tracking-tighter">Página ${page} de ${totalPages || 1}</span>
+                <span class="text-[10px] opacity-50 mr-2 uppercase tracking-tight">Página ${page} / ${totalPages || 1}</span>
                 <button onclick="loadReservations(${page - 1})" ${page <= 1 ? 'disabled' : ''} 
-                    class="w-9 h-9 bg-slate-800/80 rounded-xl border border-slate-700 disabled:opacity-20 disabled:cursor-not-allowed hover:bg-slate-700 transition-all flex items-center justify-center shadow-lg active:scale-90">
-                    <span class="material-symbols-outlined text-xl">chevron_left</span>
+                    class="w-8 h-8 bg-slate-800/80 rounded-lg border border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-700 transition flex items-center justify-center">
+                    <span class="material-symbols-outlined text-lg block">chevron_left</span>
                 </button>
-                <select onchange="loadReservations(parseInt(this.value))" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-300 outline-none focus:border-primary h-9">
-                    ${pageOptions || '<option value="1">Pág 1</option>'}
-                </select>
                 <button onclick="loadReservations(${page + 1})" ${page >= totalPages ? 'disabled' : ''} 
-                    class="w-9 h-9 bg-slate-800/80 rounded-xl border border-slate-700 disabled:opacity-20 disabled:cursor-not-allowed hover:bg-slate-700 transition-all flex items-center justify-center shadow-lg active:scale-90">
-                    <span class="material-symbols-outlined text-xl">chevron_right</span>
+                    class="w-8 h-8 bg-slate-800/80 rounded-lg border border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-700 transition flex items-center justify-center">
+                    <span class="material-symbols-outlined text-lg block">chevron_right</span>
                 </button>
             </div>
         </div>
