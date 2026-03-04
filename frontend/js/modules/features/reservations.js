@@ -13,9 +13,13 @@ export async function loadReservations(page = 1) {
     const isAdmin = user && user.role === 'admin';
 
     // Obtener filtros del DOM si existen, o usar los del estado
-    const filterDate = document.getElementById('filter-date')?.value || currentReservationsFilters.date;
-    const filterStatus = document.getElementById('filter-status')?.value || currentReservationsFilters.status;
-    const filterSearch = document.getElementById('filter-user')?.value || currentReservationsFilters.search;
+    const elDate = document.getElementById('filter-date');
+    const elStatus = document.getElementById('filter-status');
+    const elUser = document.getElementById('filter-user');
+
+    const filterDate = elDate ? elDate.value : currentReservationsFilters.date;
+    const filterStatus = elStatus ? elStatus.value : currentReservationsFilters.status;
+    const filterSearch = elUser ? elUser.value : currentReservationsFilters.search;
 
     // Sincronizar con el estado
     setReservationsFilters({ date: filterDate, status: filterStatus, search: filterSearch });
