@@ -2,8 +2,8 @@ import { API_URL, apiFetch } from '../core/api.js';
 import { showToast, showConfirm, escapeHTML } from '../core/ui.js';
 import {
     getAllReservations, setAllReservations,
-    currentReservationsPage, currentReservationsLimit,
-    setReservationsPage, setReservationsLimit
+    currentReservationsPage, currentReservationsLimit, currentReservationsFilters,
+    setReservationsPage, setReservationsLimit, setReservationsFilters
 } from '../core/state.js';
 
 export async function loadReservations(page = 1) {
@@ -12,9 +12,13 @@ export async function loadReservations(page = 1) {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user && user.role === 'admin';
 
-    const filterDate = document.getElementById('filter-date')?.value || '';
-    const filterStatus = document.getElementById('filter-status')?.value || '';
-    const filterSearch = document.getElementById('filter-user')?.value || '';
+    // Obtener filtros del DOM si existen, o usar los del estado
+    const filterDate = document.getElementById('filter-date')?.value || currentReservationsFilters.date;
+    const filterStatus = document.getElementById('filter-status')?.value || currentReservationsFilters.status;
+    const filterSearch = document.getElementById('filter-user')?.value || currentReservationsFilters.search;
+
+    // Sincronizar con el estado
+    setReservationsFilters({ date: filterDate, status: filterStatus, search: filterSearch });
 
     if (!document.getElementById('reservations-filters-bar')) {
         main.innerHTML = `<div class="p-8 text-center text-slate-500"><span class="material-symbols-outlined animate-spin text-4xl">sync</span><p class="mt-2 font-medium">Cargando gestión de reservas...</p></div>`;
@@ -24,9 +28,7 @@ export async function loadReservations(page = 1) {
         const queryParams = new URLSearchParams({
             page: currentReservationsPage,
             limit: currentReservationsLimit,
-            date: filterDate,
-            status: filterStatus,
-            search: filterSearch
+            ...currentReservationsFilters
         }).toString();
 
         const url = isAdmin ? `${API_URL}/reservations?${queryParams}` : `${API_URL}/reservations/my-reservations?${queryParams}`;
@@ -54,17 +56,17 @@ export function renderReservations(data, container, isAdmin) {
                 <p class="text-[11px] text-slate-500 mt-0.5 opacity-80 uppercase tracking-wider font-medium">${isAdmin ? 'Administración Global' : 'Historial Personal'}</p>
             </div>
             <div id="reservations-filters-bar" class="flex flex-wrap gap-2 w-full md:w-auto items-center">
-                <input type="date" id="filter-date" onchange="loadReservations(1)" class="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary h-9">
+                <input type="date" id="filter-date" value="${currentReservationsFilters.date}" onchange="loadReservations(1)" class="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary h-9">
                 <select id="filter-status" onchange="loadReservations(1)" class="bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary h-9 cursor-pointer">
-                    <option value="">Todos los estados</option>
-                    <option value="pendiente">Pendientes</option>
-                    <option value="aprobada">Aprobadas</option>
-                    <option value="rechazada">Rechazadas</option>
-                    <option value="cancelada">Canceladas</option>
+                    <option value="" ${currentReservationsFilters.status === '' ? 'selected' : ''}>Todos los estados</option>
+                    <option value="pendiente" ${currentReservationsFilters.status === 'pendiente' ? 'selected' : ''}>Pendientes</option>
+                    <option value="aprobada" ${currentReservationsFilters.status === 'aprobada' ? 'selected' : ''}>Aprobadas</option>
+                    <option value="rechazada" ${currentReservationsFilters.status === 'rechazada' ? 'selected' : ''}>Rechazadas</option>
+                    <option value="cancelada" ${currentReservationsFilters.status === 'cancelada' ? 'selected' : ''}>Canceladas</option>
                 </select>
                 ${isAdmin ? `
                 <div class="flex gap-2">
-                    <input type="text" id="filter-user" onkeyup="if(event.key === 'Enter') loadReservations(1)" placeholder="Buscar usuario o sala..." 
+                    <input type="text" id="filter-user" value="${currentReservationsFilters.search}" onkeyup="if(event.key === 'Enter') loadReservations(1)" placeholder="Buscar usuario o sala..." 
                         class="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary placeholder:text-slate-500 h-9 md:w-48">
                     <button onclick="loadReservations(1)" class="h-9 w-9 flex items-center justify-center bg-primary text-white rounded-lg transition-all active:scale-95 shadow-lg shadow-primary/20">
                         <span class="material-symbols-outlined text-[20px]">search</span>

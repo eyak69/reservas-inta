@@ -13,10 +13,12 @@ export function setMySpaces(spaces) { mySpaces = spaces; }
 let allReservations = [];
 export let currentReservationsPage = 1;
 export let currentReservationsLimit = 10;
+export let currentReservationsFilters = { date: '', status: '', search: '' };
 export function getAllReservations() { return allReservations; }
 export function setAllReservations(reservations) { allReservations = reservations; }
 export function setReservationsPage(p) { currentReservationsPage = p; }
 export function setReservationsLimit(l) { currentReservationsLimit = l; }
+export function setReservationsFilters(f) { currentReservationsFilters = { ...currentReservationsFilters, ...f }; }
 
 // Estado de usuarios (paginación)
 export let currentUsersPage = 1;
