@@ -18,7 +18,7 @@ export async function loadDashboard() {
         if (res && res.ok) {
             setMySpaces(await res.json());
         }
-    } catch (e) { console.error('Error fetching spaces:', e); }
+    } catch (e) { }
 
     const mySpaces = getMySpaces();
     let spacesHtml = mySpaces.map(s => `
@@ -79,7 +79,7 @@ export async function openModal(preselectedSpaceId = null) {
                 setMySpaces(mySpaces);
             }
         } catch (e) {
-            console.error('Error fetching spaces in openModal:', e);
+
         }
     }
 

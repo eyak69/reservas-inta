@@ -153,13 +153,13 @@ export async function changeUserRole(id, currentRole) {
 }
 
 export async function generateResetLink(id) {
-    console.log('[DEBUG-ADMIN-RESET] Solicitando link para ID:', id);
+
     const ok = await showConfirm('¿Querés generar un link de recuperación? El token anterior quedará invalidado.');
     if (!ok) return;
     try {
         const res = await apiFetch(`${API_URL}/users/${id}/generate-reset-token`, { method: 'POST' });
         const data = await res.json();
-        console.log('[DEBUG-ADMIN-RESET] Respuesta:', res.status, data);
+
         if (res.ok) {
             const resetLink = `${window.location.origin}/#reset?token=${data.token}`;
             const modalContent = `
@@ -177,10 +177,10 @@ export async function generateResetLink(id) {
                     </div>
                 </div>
             `;
-            console.log('[DEBUG-ADMIN-RESET] Abriendo modal...');
+
             await showConfirm(modalContent, true, "Link de Recuperación");
         } else showToast(data.message || 'Error al generar el token');
-    } catch (e) { console.error('[DEBUG-ADMIN-RESET] Excepción:', e); showToast('Error de red'); }
+    } catch (e) { showToast('Error de red'); }
 }
 
 export function copyResetLink() {
@@ -198,7 +198,7 @@ async function loadLogActionsCache() {
     try {
         const res = await apiFetch(`${API_URL}/logs/actions`);
         if (res && res.ok) setAvailableLogActions(await res.json());
-    } catch (e) { console.error('Error fetching log actions:', e); }
+    } catch (e) { }
 }
 
 export async function loadLogs(page = 1, applyFilters = false) {

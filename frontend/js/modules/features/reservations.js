@@ -36,7 +36,6 @@ export async function loadReservations(page = 1) {
             renderReservations(data, main, isAdmin);
         }
     } catch (e) {
-        console.error('Error fetching reservations:', e);
         showToast('Error de red cargando reservas');
     }
 }

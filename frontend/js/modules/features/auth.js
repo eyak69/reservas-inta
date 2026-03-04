@@ -140,7 +140,7 @@ export async function submitRegister() {
 // --- Google Auth ---
 export function handleCredentialResponse(response) {
     if (!response || !response.credential) {
-        console.error('[GSI] Respuesta de Google sin credencial:', response);
+
         showToast('Error: No se recibió credencial de Google.', 'error');
         return;
     }
@@ -163,7 +163,7 @@ export function handleCredentialResponse(response) {
             }
         })
         .catch(err => {
-            console.error('[GSI-FETCH-ERROR]', err);
+
             showToast('Error de conexión con el servidor.', 'error');
         });
 }
@@ -222,7 +222,7 @@ export async function checkAuth() {
             document.getElementById('user-avatar').src = freshUser.avatar_url || defaultAvatar;
             renderSecurityButton(freshUser.hasPassword);
         } catch (e) {
-            console.warn('Verificación de sesión omitida:', e.message);
+
         }
     } else {
         document.documentElement.classList.remove('has-session');
@@ -331,7 +331,7 @@ export async function openPasswordManagement() {
         }
     } catch (e) {
         showToast('Falla técnica: ' + e.message);
-        console.error('Password Update Error:', e);
+
     }
 }
 
@@ -341,7 +341,7 @@ export async function handleResetPasswordFlow() {
     const urlParams = new URLSearchParams(hash.split('?')[1]);
     const token = urlParams.get('token');
 
-    console.log('[DEBUG-RESET] Iniciando flujo. Token:', token ? 'SÍ' : 'NO');
+
     if (!token) {
         showToast('Link de recuperación inválido.', 'error');
         window.location.hash = '';
@@ -350,7 +350,7 @@ export async function handleResetPasswordFlow() {
     }
 
     try {
-        console.log('[DEBUG-RESET] Validando token...');
+
         const checkRes = await fetch(`${API_URL}/auth/validate-reset/${token}`);
         if (!checkRes.ok) {
             const errData = await checkRes.json();
@@ -361,7 +361,7 @@ export async function handleResetPasswordFlow() {
             return;
         }
         const { user } = await checkRes.json();
-        console.log('[DEBUG-RESET] Usuario:', user.name);
+
 
         const resetHtml = `
             <div class="space-y-4 pt-2">
@@ -392,9 +392,9 @@ export async function handleResetPasswordFlow() {
             </div>
         `;
 
-        console.log('[DEBUG-RESET] Abriendo modal...');
+
         const ok = await showConfirm(resetHtml, true, "Nueva Contraseña");
-        console.log('[DEBUG-RESET] Modal cerrado. Resultado:', ok);
+
 
         if (!ok) {
             window.location.hash = '';
@@ -406,26 +406,26 @@ export async function handleResetPasswordFlow() {
         const elPass = document.getElementById('new-password');
         const elConf = document.getElementById('confirm-new-password');
         if (!elPass || !elConf) {
-            console.error('[CRÍTICO] No se encontraron campos tras el modal.');
+
             showToast('Falla técnica: No se pudo leer el formulario.');
             return;
         }
 
         const password = elPass.value;
         const confirm = elConf.value;
-        console.log('[DEBUG-RESET] Contraseña capturada. Longitud:', password.length);
+
 
         if (!password || password.length < 6) { showToast('La contraseña debe tener al menos 6 caracteres.'); handleResetPasswordFlow(); return; }
         if (password !== confirm) { showToast('Las contraseñas no coinciden.'); handleResetPasswordFlow(); return; }
 
-        console.log('[DEBUG-RESET] Enviando al servidor...');
+
         const res = await fetch(`${API_URL}/auth/reset-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, password })
         });
         const data = await res.json();
-        console.log('[DEBUG-RESET] Respuesta:', res.status, data.message);
+
 
         if (res.ok) {
             window.location.hash = '';
@@ -444,7 +444,7 @@ export async function handleResetPasswordFlow() {
             }
         }
     } catch (e) {
-        console.error('[DEBUG-RESET] EXCEPCIÓN:', e);
+
         showToast('Falla técnica: ' + e.message);
     }
 }

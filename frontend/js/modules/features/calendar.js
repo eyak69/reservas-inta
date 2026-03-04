@@ -69,7 +69,7 @@ export async function loadCalendar() {
         });
         calendar.render();
     } catch (e) {
-        console.error(e);
+
         showToast('Error cargando el calendario', 'error');
     }
 }

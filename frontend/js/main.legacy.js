@@ -329,7 +329,7 @@ function handleCredentialResponse(response) {
             }
         })
         .catch(err => {
-            console.error(err);
+            
             showToast('Error de conexión con Google.', 'error');
         });
 }
@@ -418,7 +418,7 @@ async function checkAuth() {
 
         } catch (e) {
             // Error de red — dejar pasar, el usuario sigue navegando
-            console.warn('Verificación de sesión omitida por error de red:', e.message);
+            
         }
     } else {
         // Sin token → mostrar login
@@ -533,7 +533,7 @@ async function openPasswordManagement() {
         }
     } catch (e) {
         showToast('Falla técnica: ' + e.message);
-        console.error('Password Update Error:', e);
+        
     }
 }
 
@@ -543,7 +543,7 @@ async function handleResetPasswordFlow() {
     const urlParams = new URLSearchParams(hash.split('?')[1]);
     const token = urlParams.get('token');
 
-    console.log('[DEBUG-RESET] Iniciando flujo de recuperación. Token detectado:', token ? 'SÍ' : 'NO');
+    
 
     if (!token) {
         showToast('Link de recuperación inválido.', 'error');
@@ -554,10 +554,10 @@ async function handleResetPasswordFlow() {
 
     // 1. Validar el token y obtener info del usuario antes de mostrar el modal
     try {
-        console.log('[DEBUG-RESET] Validando token con el servidor...');
+        
         const checkRes = await fetch(`${API_URL}/auth/validate-reset/${token}`);
         if (!checkRes.ok) {
-            console.warn('[DEBUG-RESET] Validación fallida:', checkRes.status);
+            
             const errData = await checkRes.json();
             await showAlert('Link Inválido', errData.message || 'El enlace de recuperación ha expirado o es incorrecto.', 'error');
             window.location.hash = '';
@@ -566,7 +566,7 @@ async function handleResetPasswordFlow() {
             return;
         }
         const { user } = await checkRes.json();
-        console.log('[DEBUG-RESET] Token válido. Usuario:', user.name);
+        
 
         // 2. Mostrar modal premium para nueva contraseña con info del usuario
         const resetHtml = `
@@ -598,12 +598,12 @@ async function handleResetPasswordFlow() {
             </div>
         `;
 
-        console.log('[DEBUG-RESET] Abriendo modal de confirmación...');
+        
         const ok = await showConfirm(resetHtml, true, "Nueva Contraseña");
-        console.log('[DEBUG-RESET] Modal cerrado. Resultado:', ok);
+        
 
         if (!ok) {
-            console.log('[DEBUG-RESET] El usuario canceló el modal.');
+            
             window.location.hash = '';
             window.history.replaceState(null, null, window.location.pathname);
             checkAuth();
@@ -614,14 +614,14 @@ async function handleResetPasswordFlow() {
         const elConf = document.getElementById('confirm-new-password');
 
         if (!elPass || !elConf) {
-            console.error('[CRÍTICO] No se encontraron los campos tras el modal. Sincronía fallida.');
+            
             showToast('Falla técnica: No se pudo leer el formulario.');
             return;
         }
 
         const password = elPass.value;
         const confirm = elConf.value;
-        console.log('[DEBUG-RESET] Contraseña capturada. Longitud:', password.length);
+        
 
         if (!password || password.length < 6) {
             showToast('La contraseña debe tener al menos 6 caracteres.');
@@ -636,17 +636,17 @@ async function handleResetPasswordFlow() {
         }
 
         // 3. Ejecutar el cambio
-        console.log('[DEBUG-RESET] Enviando nueva contraseña al servidor...');
+        
         const res = await fetch(`${API_URL}/auth/reset-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, password })
         });
         const data = await res.json();
-        console.log('[DEBUG-RESET] Servidor respondió:', res.status, data.message);
+        
 
         if (res.ok) {
-            console.log('[DEBUG-RESET] Éxito. Limpiando URL y mostrando éxito.');
+            
             // 1. Limpieza INMEDIATA de la URL para que checkAuth no lo pesque de nuevo
             window.location.hash = '';
             window.history.replaceState(null, null, window.location.pathname);
@@ -658,7 +658,7 @@ async function handleResetPasswordFlow() {
             localStorage.setItem('activeView', 'dashboard');
             checkAuth();
         } else {
-            console.warn('[DEBUG-RESET] Fallo del servidor:', data.message);
+            
             showToast(data.message || 'Error al resetear contraseña', 'error');
             // Si el error es por token expirado/inválido, limpiar y salir en vez de reintentar infinitamente
             if (data.message?.toLowerCase().includes('expirado') || data.message?.toLowerCase().includes('inválido')) {
@@ -670,7 +670,7 @@ async function handleResetPasswordFlow() {
             }
         }
     } catch (e) {
-        console.error('[DEBUG-RESET] EXCEPCIÓN:', e);
+        
         showToast('Falla técnica: ' + e.message);
     }
 }
@@ -718,7 +718,7 @@ async function loadDashboard() {
     try {
         const res = await fetch(`${API_URL}/spaces`);
         mySpaces = await res.json();
-    } catch (e) { console.error('Error fetching spaces:', e); }
+    } catch (e) {  }
 
     let spacesHtml = mySpaces.map(s => `
         <div class="group relative h-64 sm:h-72 rounded-2xl overflow-hidden cursor-pointer" onclick="openModal(${s.id})">
@@ -810,7 +810,7 @@ async function loadReservations() {
 
         renderReservations();
     } catch (e) {
-        console.error('Error fetching reservations:', e);
+        
         main.innerHTML = `<p class="text-red-500 font-bold p-4">Error cargando las reservas. Verifica tu conexión.</p>`;
     }
 }
@@ -912,7 +912,7 @@ async function loadCalendar() {
 
         calendar.render();
     } catch (e) {
-        console.error(e);
+        
         showToast('Error cargando el calendario', 'error');
     }
 }
@@ -1463,7 +1463,7 @@ async function loadLogActions() {
         if (res && res.ok) {
             availableLogActions = await res.json();
         }
-    } catch (e) { console.error('Error fetching log actions:', e); }
+    } catch (e) {  }
 }
 
 async function loadLogs(page = 1, applyFilters = false) {
@@ -1615,23 +1615,23 @@ function changeLogsLimit(limit) {
 }
 
 async function generateResetLink(id) {
-    console.log('[DEBUG-ADMIN-RESET] Solicitando generación de link para ID:', id);
+    
     const ok = await showConfirm(`¿Querés generar un link de recuperación para este usuario? El token anterior (si existe) quedará invalidado.`);
-    console.log('[DEBUG-ADMIN-RESET] Confirmación de generación:', ok);
+    
 
     if (!ok) return;
 
     try {
-        console.log('[DEBUG-ADMIN-RESET] Llamando a la API...');
+        
         const res = await apiFetch(`${API_URL}/users/${id}/generate-reset-token`, {
             method: 'POST'
         });
         const data = await res.json();
-        console.log('[DEBUG-ADMIN-RESET] Respuesta API:', res.status, data);
+        
 
         if (res.ok) {
             const resetLink = `${window.location.origin}/#reset?token=${data.token}`;
-            console.log('[DEBUG-ADMIN-RESET] Link generado:', resetLink);
+            
 
             const modalContent = `
                 <div class="space-y-4 pt-2">
@@ -1649,14 +1649,14 @@ async function generateResetLink(id) {
                 </div>
             `;
 
-            console.log('[DEBUG-ADMIN-RESET] Abriendo modal con el link...');
+            
             await showConfirm(modalContent, true, "Link de Recuperación");
         } else {
-            console.warn('[DEBUG-ADMIN-RESET] Error en API:', data.message);
+            
             showToast(data.message || 'Error al generar el token');
         }
     } catch (e) {
-        console.error('[DEBUG-ADMIN-RESET] Excepción:', e);
+        
         showToast('Error de red');
     }
 }
