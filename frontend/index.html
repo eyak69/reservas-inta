@@ -5,8 +5,8 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Sistema de Reservas INTA</title>
-    <link rel="icon" type="image/png" href="favicon.png?v=6" />
-    <link rel="apple-touch-icon" href="favicon.png?v=6" />
+    <link rel="icon" type="image/png" href="/favicon.png?v=6" />
+    <link rel="apple-touch-icon" href="/favicon.png?v=6" />
     <meta name="theme-color" content="#0f172a" />
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -34,7 +34,7 @@
             },
         }
     </script>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="/css/style.css?v=2">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales-all.global.min.js'></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -122,8 +122,24 @@
                         class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2 px-3 text-white text-sm focus:border-primary outline-none" />
                     <input type="email" id="reg-email" placeholder="Correo electrónico"
                         class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2 px-3 text-white text-sm focus:border-primary outline-none" />
-                    <input type="password" id="reg-password" placeholder="Contraseña"
-                        class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2 px-3 text-white text-sm focus:border-primary outline-none" />
+                    <div class="relative w-full">
+                        <input type="password" id="reg-password" placeholder="Contraseña"
+                            class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2 px-3 pr-10 text-white text-sm focus:border-primary outline-none" />
+                        <button type="button" onclick="togglePasswordVisibility('reg-password', 'eye-icon-pass')"
+                            tabindex="-1"
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+                            <span id="eye-icon-pass" class="material-symbols-outlined text-[20px]">visibility</span>
+                        </button>
+                    </div>
+                    <div class="relative w-full">
+                        <input type="password" id="reg-confirm-password" placeholder="Repite la contraseña"
+                            class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-2 px-3 pr-10 text-white text-sm focus:border-primary outline-none" />
+                        <button type="button"
+                            onclick="togglePasswordVisibility('reg-confirm-password', 'eye-icon-conf')" tabindex="-1"
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+                            <span id="eye-icon-conf" class="material-symbols-outlined text-[20px]">visibility</span>
+                        </button>
+                    </div>
 
                     <div class="mt-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700 shadow-inner">
                         <label class="text-[10px] uppercase font-bold text-slate-400 mb-2 block tracking-widest">Código
@@ -200,6 +216,11 @@
                 class="nav-item hidden flex-col items-center gap-1 text-slate-400" data-target="users">
                 <span class="material-symbols-outlined text-[28px]">group</span>
                 <span class="text-[10px] font-medium">Usuarios</span>
+            </a>
+            <a href="#" onclick="navigate('logs')" id="nav-logs"
+                class="nav-item hidden flex-col items-center gap-1 text-slate-400" data-target="logs">
+                <span class="material-symbols-outlined text-[28px]">policy</span>
+                <span class="text-[10px] font-medium">Auditoría</span>
             </a>
         </nav>
 
@@ -355,17 +376,23 @@
     <div id="confirm-modal-overlay"
         class="fixed inset-0 z-[60] hidden bg-background-dark/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div id="confirm-modal"
-            class="w-full max-w-sm glass-card rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center transform scale-95 opacity-0 transition-all duration-300">
-            <div class="size-16 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center mb-4">
-                <span class="material-symbols-outlined text-[32px]">warning</span>
+            class="w-full max-w-sm bg-slate-800/90 border border-slate-700/50 rounded-2xl p-8 shadow-2xl flex flex-col items-center overflow-hidden transform scale-95 opacity-0 transition-all duration-300">
+            <div class="mb-6 flex items-center justify-center">
+                <div
+                    class="size-16 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center border border-red-500/30 text-[32px]">
+                    <span class="material-symbols-outlined">warning</span>
+                </div>
             </div>
-            <h3 class="text-xl font-bold mb-2">¿Estás seguro?</h3>
-            <p id="confirm-message" class="text-slate-400 text-sm mb-6">Esta acción no se puede deshacer.</p>
-            <div class="flex gap-3 w-full">
+            <h3 id="confirm-title" class="text-slate-100 text-2xl font-bold tracking-tight mb-2 text-center">¿Estás
+                seguro?</h3>
+            <p id="confirm-message"
+                class="text-slate-400 text-sm mb-8 text-center uppercase tracking-widest font-medium">Esta acción no se
+                puede deshacer.</p>
+            <div class="flex w-full gap-3">
                 <button id="btn-confirm-cancel"
-                    class="flex-1 bg-slate-800/80 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-medium transition-colors">Cancelar</button>
+                    class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 py-3.5 rounded-xl font-bold transition-colors text-sm">Cancelar</button>
                 <button id="btn-confirm-accept"
-                    class="flex-1 bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/30 transition-colors">Aceptar</button>
+                    class="flex-1 bg-primary hover:bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-primary/20 transition-colors text-sm">Aceptar</button>
             </div>
         </div>
     </div>
@@ -373,7 +400,8 @@
     <!-- Toast Container - Fuera de app-view -->
     <div id="toast-container" class="fixed top-6 right-6 z-[70] flex flex-col gap-3 pointer-events-none"></div>
 
-    <script src="js/main.js?v=3"></script>
+    <!-- ARQUITECTURA MODULAR ES6 — Cache Busting v2 -->
+    <script type="module" src="/js/modules/main.js?v=2"></script>
 </body>
 
 </html>

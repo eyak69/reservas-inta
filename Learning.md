@@ -35,3 +35,41 @@ Resulta esencial proteger las APIs que manejan autenticación e información sen
 *   **Ataques de Fuerza Bruta:** Usar librerías como `express-rate-limit` para bloquear IPs que superen un umbral de intentos rápidos en el login.
 *   **Ataques Stored XSS:** No confiar nunca en `innerHTML` en el frontend si los datos vienen de la base de datos sin sanitizar. Una estrategia robusta backend es usar un middleware que itere limpiar recursivamente `req.body`, `req.query` y `req.params` (con librerías probadas como `xss`).
 *   **Information Leakage (Cabeceras HTTP):** Instalar `helmet` configura automáticamente decenas de cabeceras seguras (HSTS, NoSniff, etc.) y oculta firmas tecnológicas (ej. `X-Powered-By: Express`). Si la app carga JS desde CDNs (Google, etc.), se puede configurar `contentSecurityPolicy: false` para no romper el frontend.
+
+## 12. Seguridad en Formularios: Visibilidad y Doble Validación de Clave
+Al implementar funciones de "mostrar contraseña" (el clásico "ojito") en sistemas corporativos, existe el riesgo a largo plazo del "Shoulder Surfing" (alguien mirando por la espalda). Aunque mejora la experiencia de usuario, es prudente considerar mitigar el riesgo ocultando la clave tras unos segundos.
+A su vez, la doble validación de contraseña ("Repetir clave") no debe limitarse al Frontend; una llamada directa a la API (ej. Postman) podría enviar claves mal escritas al servidor si no se cotejan ambas en el Backend.
+
+## 13. Persistencia Integral en Docker
+Considerando la regla de "Persistencia Blindada", cualquier archivo que modifique o genere la aplicación dentro del contenedor perece cuando este es destruido. Esto también aplica a los **logs** emitidos por el servidor y el Proxy inverso. Para no perder la traza de eventos ante crasheos, se requiere mapear un volumen como `./logs:/var/log/app`.
+
+## 14. [CRÍTICO] Sincronización de Zona Horaria en Producción (Node + MySQL)
+**Error detectado:** Las reservas se guardaban y leían con un desfase de múltiples horas en Producción.
+**Lección Aprendida:** Jamás depender del Timezone implícito del servidor o permitir que el driver MySQL asuma UTC (`Z`) en aplicaciones que dependen de una zona horaria estricta local (como un sistema de reservas en una franja horaria acotada, ej. Mendoza `-03:00`). 
+La falla ocurrió porque Node.js, actuando como cliente de MySQL, procesaba la fecha `DATETIME` devuelta como UTC estándar, forzando una doble re-conversión en el frontend y modificando visualmente el turno reservado, provocando reinicios o reinstalaciones completas en el entorno productivo. 
+**Solución Arquitectónica:** Aislar el comportamiento de los clientes y la base de datos inyectando explícitamente el offset en la conexión del Pool de Base de Datos (en `db.js`), forzando `timezone: '-03:00'` y utilizando `dateStrings: true` para que los paquetes se transfieran textualmente y blindar el sistema contra dependencias infraestructurales fuera de nuestro control.
+
+## 15. Seguridad XSS en "Tickets" o Vistas Renderizadas en el Cliente
+Es una excelente mejora de UX mostrar a un usuario un detalle o "ticket virtual" confirmando todo lo que ha cargado en un formulario antes de enviarlo al servidor (`submit`).
+Sin embargo, **si los datos ingresados por el usuario se inyectan en componentes visuales usando `innerHTML`**, se abre un grave agujero de seguridad conocido como Reflected/DOM-based XSS local.
+Para evitar la auto-ejecución de scripts (ej. `<script>alert('hack')</script>`) capturados desde un campo de comentarios, la Regla Mínima de Oro es pasar toda variable tipo *string* del usuario por una función de sanitización (`escapeHTML`) que convierta los caracteres rompedores (`<`, `>`, `&`, `"`, `'`) en entidades HTML benignas preventivamente.
+
+## 16. Arquitectura de Auditoría: Backend-Driven vs Frontend-Driven
+La tabla que más rápido crece en cualquier sistema es la de Logs de Actividad. Si confiamos en que el Frontend inserte los logs llamando a un endpoint público (`POST /api/logs`), abrimos una grave vulnerabilidad de denegación de servicio (DDoS de almacenamiento), donde un atacante podría agotar el disco de la base de datos llamando millones de veces al endpoint.
+**Principio de Auditoría Segura (Backend-Driven):** Los logs deben ser siempre automáticos, invisibles e infalsificables, creados puramente desde el servidor (Controladores) interceptando las acciones exitosas de los usuarios. Además, para prevenir colapsos en las vistas de monitoreo, se debe indexar correctamente la tabla en MySQL `(created_at, user_id)` e imponer estrictos límites de lectura (`LIMIT 200`) en la interfaz de administración.## 17. Recuperación de Contraseña Segura (Flujo Manual + SHA256)
+Para evitar la dependencia de servicios SMTP (que pueden fallar o requerir costos) y prevenir la enumeración de usuarios, se optó por un flujo de recuperación mediado por el Administrador. 
+*   **Seguridad de Tokens:** Los tokens de recuperación poseen alta entropía (32 bytes aleatorios) y se almacenan en la base de datos utilizando **SHA256**. A diferencia de `bcrypt`, SHA256 es determinístico, lo que permite al backend encontrar instantáneamente al usuario asociado al token sin comprometer la seguridad (ya que el token original nunca vive en la DB).
+*   **Control Temporal:** Se impone una expiración estricta de 24 horas y el token se invalida (se limpia el campo) inmediatamente después del primer uso exitoso, siguiendo el principio de "One-Time-Token".
+
+
+## 19. Gestión de Colisiones de Modales (Race Conditions en UI)
+En interfaces Single Page Application (SPA) que reutilizan el mismo contenedor de overlay, abrir un modal inmediatamente después de cerrar otro provoca que el código de limpieza del primero destruya el contenido del segundo. La solución técnica consiste en implementar un rastreador de *timeouts* global (`confirmCleanupTimeout`) que permita cancelar limpiezas pendientes (`clearTimeout`) si se detecta una nueva apertura de modal, garantizando la persistencia del DOM para el nuevo contenido.
+
+## 20. Sincronía de Lectura vs. Animaciones CSS
+Al usar animaciones de salida (ej. 300ms de transición), es vital que la lógica de negocio resuelva la Promesa del modal **antes** de que la animación de limpieza borre el HTML inyectado. Si la Promesa se resuelve *después* del cierre visual, el código llamador intentará leer valores de `inputs` que ya han sido eliminados del árbol de elementos, resultando en fallos silenciosos y pérdida de datos a pesar de que el usuario los haya escrito correctamente.
+
+## 21. Blindaje de Infraestructura para Producción (Docker)
+Al desplegar en entornos administrados (como Coolify), es vital que la imagen Docker sea autónoma pero flexible. La lección aprendida es forzar la variable `TZ=America/Argentina/Buenos_Aires` a nivel de contenedor para que tanto Node como los logs de auditoría tengan coherencia horaria, independientemente de dónde esté físicamente el servidor. Además, el `Dockerfile` debe asegurar la existencia de directorios de persistencia (`logs`, `storage`) con permisos adecuados (`chmod 777`) para evitar fallos de escritura en el primer arranque.
+
+## 22. Confianza en el Proxy Inverso (Trust Proxy)
+Cuando una aplicación Node corre detrás de un Balanceador de Carga o Proxy (Traefik, Nginx), la propiedad `req.ip` devolverá la IP interna del proxy en lugar de la del usuario. Para que nuestro sistema de Auditoría/Logs sea veraz, es obligatorio configurar `app.set('trust proxy', 1)`. Esto permite que Express lea las cabeceras `X-Forwarded-For` y registre la IP real del cliente, blindando la trazabilidad de seguridad.

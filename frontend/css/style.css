@@ -20,8 +20,9 @@
 }
 
 .vibrant-bg {
-    background: radial-gradient(circle at top left, rgba(43, 108, 238, 0.2), transparent),
-        radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.2), transparent);
+    background: linear-gradient(rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.7)),
+        url('/img/login-bg.jpg') no-repeat center center fixed;
+    background-size: cover;
 }
 
 .neon-glow {

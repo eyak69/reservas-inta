@@ -11,9 +11,13 @@ const userRoutes = require('./routes/userRoutes');
 const spaceRoutes = require('./routes/spaceRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const authRoutes = require('./routes/authRoutes');
+const logRoutes = require('./routes/logRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Confiar en el proxy inverso (Coolify/Traefik) para obtener la IP real
+app.set('trust proxy', 1);
 
 // Middleware de seguridad y utilidad
 app.use(helmet({
@@ -42,6 +46,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/spaces', spaceRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/logs', logRoutes);
 
 // Para cualquier otra ruta GET no capturada por las API, devolvemos la SPA del frontend
 app.get('*', (req, res) => {

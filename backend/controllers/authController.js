@@ -1,7 +1,9 @@
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const svgCaptcha = require('svg-captcha');
+const logActivity = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_123';
 
@@ -27,10 +29,14 @@ const getCaptcha = (req, res) => {
 
 // 2. Registro local (con contraseña y Captcha)
 const register = async (req, res) => {
-    const { name, email, password, captchaText, captchaToken } = req.body;
+    const { name, email, password, confirmPassword, captchaText, captchaToken } = req.body;
 
-    if (!name || !email || !password || !captchaText || !captchaToken) {
+    if (!name || !email || !password || !confirmPassword || !captchaText || !captchaToken) {
         return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
+    }
+
+    if (password !== confirmPassword) {
+        return res.status(400).json({ message: 'Las contraseñas no coinciden.' });
     }
 
     if (password.length < 6) {
@@ -60,6 +66,8 @@ const register = async (req, res) => {
             'INSERT INTO users (name, email, password, role, is_active) VALUES (?, ?, ?, "usuario", false)',
             [name, email, hashedPassword]
         );
+
+        logActivity(result.insertId, 'REGISTER', 'Auth', result.insertId, null, { email, role: 'usuario' }, req.ip);
 
         res.status(201).json({
             message: 'Registro exitoso. Tu cuenta debe ser autorizada por un Administrador.'
@@ -100,8 +108,10 @@ const login = async (req, res) => {
         const token = jwt.sign(
             { id: user.id, email: user.email, name: user.name, role: user.role, avatar_url: user.avatar_url },
             JWT_SECRET,
-            { expiresIn: '24h' }
+            { expiresIn: '12h' }
         );
+
+        logActivity(user.id, 'LOGIN', 'Auth', user.id, null, { method: 'local', email: user.email }, req.ip);
 
         res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar_url: user.avatar_url } });
     } catch (error) {
@@ -109,4 +119,76 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = { getCaptcha, register, login };
+// 4. Resetear contraseña con token
+const resetPassword = async (req, res) => {
+    const { token, password } = req.body;
+    console.log(`[DEBUG] Intento de reset con token: ${token?.substring(0, 10)}...`);
+
+    if (!token || !password) {
+        return res.status(400).json({ message: 'Token y contraseña son obligatorios.' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' });
+    }
+
+    try {
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        console.log(`[DEBUG] Hashed Token para búsqueda: ${hashedToken}`);
+
+        const [users] = await pool.query(
+            'SELECT id, email, name FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()',
+            [hashedToken]
+        );
+
+        if (users.length === 0) {
+            console.log(`[DEBUG] No se encontró usuario para el token o expiró.`);
+            return res.status(400).json({ message: 'El link de recuperación es inválido o ha expirado.' });
+        }
+
+        const user = users[0];
+        console.log(`[DEBUG] Usuario encontrado: ${user.email} (ID: ${user.id})`);
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const [result] = await pool.query(
+            'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+            [hashedPassword, user.id]
+        );
+
+        if (result.affectedRows === 0) {
+            console.error(`[ERROR] No se pudo actualizar la contraseña en DB para ID: ${user.id}`);
+            return res.status(500).json({ message: 'Error interno al actualizar la base de datos.' });
+        }
+
+        logActivity(user.id, 'RESET_PASSWORD', 'Auth', user.id, null, { email: user.email }, req.ip);
+        console.log(`[DEBUG] Contraseña actualizada exitosamente para ${user.email}`);
+
+        res.json({ message: `¡Contraseña de ${user.name} actualizada con éxito! Ya puedes iniciar sesión.` });
+    } catch (error) {
+        console.error('[ERROR] Excepción en resetPassword:', error);
+        res.status(500).json({ message: 'Error procesando el reset de contraseña', error: error.message });
+    }
+};
+
+// 5. Validar token de reset (para mostrar info del usuario en el frontend)
+const validateResetToken = async (req, res) => {
+    const { token } = req.params;
+    try {
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        const [users] = await pool.query(
+            'SELECT name, email FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()',
+            [hashedToken]
+        );
+
+        if (users.length === 0) {
+            return res.status(400).json({ message: 'Link inválido o expirado.' });
+        }
+
+        res.json({ user: users[0] });
+    } catch (error) {
+        res.status(500).json({ message: 'Error validando token', error: error.message });
+    }
+};
+
+module.exports = { getCaptcha, register, login, resetPassword, validateResetToken };

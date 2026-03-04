@@ -8,7 +8,9 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME || 'reservas_inta',
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    timezone: '-03:00',
+    dateStrings: true
 });
 
 module.exports = pool;

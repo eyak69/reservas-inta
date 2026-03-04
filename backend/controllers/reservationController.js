@@ -1,17 +1,60 @@
 const pool = require('../config/db');
+const logActivity = require('../utils/logger');
 
-// Obtener todas las reservas (Admin)
+// Obtener todas las reservas (Admin) con paginación y filtros
 const getAllReservations = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const { date, status, search } = req.query;
+
+        let whereChunks = [];
+        let params = [];
+
+        if (date) {
+            whereChunks.push('DATE(r.start_time) = ?');
+            params.push(date);
+        }
+        if (status) {
+            whereChunks.push('r.status = ?');
+            params.push(status);
+        }
+        if (search) {
+            whereChunks.push('(u.name LIKE ? OR u.email LIKE ? OR s.name LIKE ?)');
+            const s = `%${search}%`;
+            params.push(s, s, s);
+        }
+
+        const whereClause = whereChunks.length ? `WHERE ${whereChunks.join(' AND ')}` : '';
+
+        const countSql = `
+            SELECT COUNT(*) as total 
+            FROM reservations r
+            JOIN users u ON r.user_id = u.id
+            JOIN spaces s ON r.space_id = s.id
+            ${whereClause}
+        `;
+        const [countResult] = await pool.query(countSql, params);
+        const total = countResult[0].total;
+
         const sql = `
             SELECT r.*, u.name as user_name, u.email as user_email, s.name as space_name 
             FROM reservations r
             JOIN users u ON r.user_id = u.id
             JOIN spaces s ON r.space_id = s.id
+            ${whereClause}
             ORDER BY r.start_time DESC
+            LIMIT ? OFFSET ?
         `;
-        const [reservations] = await pool.query(sql);
-        res.json(reservations);
+        const [reservations] = await pool.query(sql, [...params, limit, offset]);
+
+        res.json({
+            reservations,
+            total,
+            totalPages: Math.ceil(total / limit),
+            page
+        });
     } catch (error) {
         res.status(500).json({ message: 'Error obteniendo reservas', error: error.message });
     }
@@ -34,18 +77,52 @@ const getAllPublicReservations = async (req, res) => {
     }
 };
 
-// Obtener las reservas del usuario logueado (Usuario)
+// Obtener las reservas del usuario logueado (Usuario) con paginación y filtros
 const getMyReservations = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const { date, status } = req.query;
+
+        let whereChunks = ['r.user_id = ?'];
+        let params = [req.user.id];
+
+        if (date) {
+            whereChunks.push('DATE(r.start_time) = ?');
+            params.push(date);
+        }
+        if (status) {
+            whereChunks.push('r.status = ?');
+            params.push(status);
+        }
+
+        const whereClause = `WHERE ${whereChunks.join(' AND ')}`;
+
+        const countSql = `
+            SELECT COUNT(*) as total 
+            FROM reservations r
+            ${whereClause}
+        `;
+        const [countResult] = await pool.query(countSql, params);
+        const total = countResult[0].total;
+
         const sql = `
             SELECT r.*, s.name as space_name 
             FROM reservations r
             JOIN spaces s ON r.space_id = s.id
-            WHERE r.user_id = ?
+            ${whereClause}
             ORDER BY r.start_time DESC
+            LIMIT ? OFFSET ?
                 `;
-        const [reservations] = await pool.query(sql, [req.user.id]);
-        res.json(reservations);
+        const [reservations] = await pool.query(sql, [...params, limit, offset]);
+
+        res.json({
+            reservations,
+            total,
+            totalPages: Math.ceil(total / limit),
+            page
+        });
     } catch (error) {
         res.status(500).json({ message: 'Error obteniendo mis reservas', error: error.message });
     }
@@ -100,6 +177,7 @@ const createReservation = async (req, res) => {
             'INSERT INTO reservations (user_id, space_id, start_time, end_time, status, comments) VALUES (?, ?, ?, ?, ?, ?)',
             [user_id, space_id, start_time, end_time, 'pendiente', comments] // empiezar pendientes por defecto
         );
+        logActivity(user_id, 'CREATE_RESERVATION', 'Reserva', result.insertId, space_id, { start_time, end_time }, req.ip);
         res.status(201).json({ message: 'Reserva creada exitosamente', id: result.insertId });
     } catch (error) {
         res.status(500).json({ message: 'Error creando reserva', error: error.message });
@@ -111,6 +189,13 @@ const updateReservationStatus = async (req, res) => {
     const { status } = req.body;
     try {
         await pool.query('UPDATE reservations SET status = ? WHERE id = ?', [status, req.params.id]);
+
+        // Obtener space_id para el log
+        const [resRows] = await pool.query('SELECT space_id FROM reservations WHERE id = ?', [req.params.id]);
+        const rSpaceId = resRows.length ? resRows[0].space_id : null;
+
+        logActivity(req.user.id, 'UPDATE_RESERVATION_STATUS', 'Reserva', req.params.id, rSpaceId, { status }, req.ip);
+
         res.json({ message: `Reserva actualizada a estado: ${status} ` });
     } catch (error) {
         res.status(500).json({ message: 'Error actualizando estado', error: error.message });
@@ -120,8 +205,8 @@ const updateReservationStatus = async (req, res) => {
 // Cancelar/Borrar reserva
 const cancelReservation = async (req, res) => {
     try {
-        // Solo el dueño original de la reserva o un admin deberían borrar/cancelar
-        const [rows] = await pool.query('SELECT user_id FROM reservations WHERE id = ?', [req.params.id]);
+        // Obtenemos user y space ID para check de permisos y log
+        const [rows] = await pool.query('SELECT user_id, space_id FROM reservations WHERE id = ?', [req.params.id]);
         if (rows.length === 0) return res.status(404).json({ message: 'No encontrada' });
 
         if (rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
@@ -129,6 +214,8 @@ const cancelReservation = async (req, res) => {
         }
 
         await pool.query('UPDATE reservations SET status = "cancelada" WHERE id = ?', [req.params.id]);
+        logActivity(req.user.id, 'CANCEL_RESERVATION', 'Reserva', req.params.id, rows[0].space_id, {}, req.ip);
+
         res.json({ message: 'Reserva cancelada' });
     } catch (error) {
         res.status(500).json({ message: 'Error cancelando reserva', error: error.message });
