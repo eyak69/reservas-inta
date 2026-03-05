@@ -227,7 +227,10 @@ export async function loadLogs(page = 1, applyFilters = false) {
         const data = await res.json();
 
         const logsHtml = data.logs.map(l => {
-            const date = new Date(l.created_at).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+            // Fix timezone: MySQL returns UTC string without 'Z'.
+            // Ex: "2026-03-05 13:27:00" -> "2026-03-05T13:27:00Z"
+            const utcString = l.created_at.replace(' ', 'T') + 'Z';
+            const date = new Date(utcString).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
             const actionClass = l.action.includes('DELETE') || l.action.includes('CANCEL') || l.action.includes('SUSPEND')
                 ? 'bg-red-500/10 text-red-400 border-red-500/30'
                 : l.action.includes('CREATE') || l.action.includes('ACTIVATE')
