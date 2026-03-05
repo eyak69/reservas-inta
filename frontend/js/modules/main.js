@@ -2,7 +2,7 @@
 // Este archivo orquesta todos los módulos e inicializa la aplicación.
 // Las funciones se exponen en window.* para compatibilidad con los onclick del HTML.
 
-import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, handleCredentialResponse, openPasswordManagement } from './features/auth.js';
+import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, openPasswordManagement } from './features/auth.js';
 import { togglePasswordVisibility } from './core/ui.js';
 import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, submitReservation } from './features/dashboard.js';
 import { loadReservations, renderReservations, updateReservationStatus, cancelReservation, changeReservationsLimit } from './features/reservations.js';
@@ -35,7 +35,6 @@ window.navigate = navigate;
 window.toggleAuthView = toggleAuthView;
 window.submitLogin = submitLogin;
 window.submitRegister = submitRegister;
-window.handleCredentialResponse = handleCredentialResponse;
 window.openPasswordManagement = openPasswordManagement;
 window.togglePasswordVisibility = togglePasswordVisibility;
 

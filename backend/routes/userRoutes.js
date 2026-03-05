@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { googleLogin, getAllUsers, getProfile, toggleUserStatus, changeUserRole, generateResetToken, updatePassword } = require('../controllers/userController');
+const { googleLoginStart, googleLoginCallback, getAllUsers, getProfile, toggleUserStatus, changeUserRole, generateResetToken, updatePassword } = require('../controllers/userController');
 const { authMiddleware, adminMiddleware } = require('../middlewares/authMiddleware');
 
-router.post('/login/google', googleLogin);
+router.get('/login/google', googleLoginStart);
+router.get('/login/google/callback', googleLoginCallback);
 router.get('/profile', authMiddleware, getProfile);
 router.put('/profile/password', authMiddleware, updatePassword);
 router.get('/', authMiddleware, adminMiddleware, getAllUsers);

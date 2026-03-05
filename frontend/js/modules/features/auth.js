@@ -138,38 +138,34 @@ export async function submitRegister() {
 }
 
 // --- Google Auth ---
-export function handleCredentialResponse(response) {
-    if (!response || !response.credential) {
-
-        showToast('Error: No se recibió credencial de Google.', 'error');
-        return;
-    }
-    const data = { token: response.credential };
-    apiFetch(`${API_URL}/users/login/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-        .then(async res => {
-            const body = await res.json().catch(() => ({}));
-            if (res.status === 202 && body.pending) {
-                showPendingScreen(body.message);
-            } else if (res.ok && body.token) {
-                localStorage.setItem('token', body.token);
-                localStorage.setItem('user', JSON.stringify(body.user));
-                window.location.reload();
-            } else {
-                showToast('Error en login: ' + (body.message || 'Error desconocido'), 'error');
-            }
-        })
-        .catch(err => {
-
-            showToast('Error de conexión con el servidor.', 'error');
-        });
-}
+// Eliminado: Reemplazado por Google OAuth2 Backend Flow
+// --------------------------------------------------------
 
 // --- CheckAuth / Verificación de sesión ---
 export async function checkAuth() {
+    const hash = window.location.hash;
+
+    // Procesar redirecciones desde el Backend (Google Auth)
+    if (hash.startsWith('#token=')) {
+        const tokenFromUrl = hash.split('=')[1];
+        localStorage.setItem('token', tokenFromUrl);
+        window.location.hash = '';
+        history.replaceState(null, '', window.location.pathname);
+    } else if (hash.startsWith('#pending=')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const message = params.get('message') || 'Tu cuenta está pendiente de aprobación por un administrador.';
+        showPendingScreen(message);
+        window.location.hash = '';
+        history.replaceState(null, '', window.location.pathname);
+        return;
+    } else if (hash.startsWith('#error=')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const errorMsg = params.get('error');
+        showToast(errorMsg || 'Error en inicio de sesión con Google', 'error');
+        window.location.hash = '';
+        history.replaceState(null, '', window.location.pathname);
+    }
+
     if (window.location.hash.startsWith('#reset')) {
         handleResetPasswordFlow();
         return;
@@ -180,28 +176,9 @@ export async function checkAuth() {
     const appView = document.getElementById('app-view');
 
     if (token) {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        authView.style.display = 'none';
-        appView.style.display = 'flex';
-        startIdleTimer();
-
-        const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOHYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
-        document.getElementById('user-avatar').src = user.avatar_url || defaultAvatar;
-
-        const navUsers = document.getElementById('nav-users');
-        const navLogs = document.getElementById('nav-logs');
-        if (user.role === 'admin') {
-            navUsers.classList.remove('hidden'); navUsers.classList.add('flex');
-            navLogs.classList.remove('hidden'); navLogs.classList.add('flex');
-        } else {
-            navUsers.classList.add('hidden'); navUsers.classList.remove('flex');
-            navLogs.classList.add('hidden'); navLogs.classList.remove('flex');
-        }
-
-        const lastView = localStorage.getItem('activeView') || 'dashboard';
-        window.navigate(lastView);
-
         document.documentElement.classList.remove('has-session');
+
+        // Primero obtener el perfil real para nutrir localStorage ANTES de renderizar la app
         try {
             const res = await apiFetch(`${API_URL}/users/profile`);
             if (!res) return;
@@ -219,10 +196,32 @@ export async function checkAuth() {
                 id: freshUser.id, name: freshUser.name, email: freshUser.email,
                 role: freshUser.role, avatar_url: freshUser.avatar_url, hasPassword: freshUser.hasPassword
             }));
-            document.getElementById('user-avatar').src = freshUser.avatar_url || defaultAvatar;
-            renderSecurityButton(freshUser.hasPassword);
-        } catch (e) {
 
+            // Ahora si mostramos la App View con datos verificados
+            authView.style.display = 'none';
+            appView.style.display = 'flex';
+            startIdleTimer();
+
+            const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOHYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
+            document.getElementById('user-avatar').src = freshUser.avatar_url || defaultAvatar;
+
+            const navUsers = document.getElementById('nav-users');
+            const navLogs = document.getElementById('nav-logs');
+            if (freshUser.role === 'admin') {
+                navUsers.classList.remove('hidden'); navUsers.classList.add('flex');
+                navLogs.classList.remove('hidden'); navLogs.classList.add('flex');
+            } else {
+                navUsers.classList.add('hidden'); navUsers.classList.remove('flex');
+                navLogs.classList.add('hidden'); navLogs.classList.remove('flex');
+            }
+
+            renderSecurityButton(freshUser.hasPassword);
+
+            const lastView = localStorage.getItem('activeView') || 'dashboard';
+            window.navigate(lastView);
+
+        } catch (e) {
+            console.error('Error cargando perfil:', e);
         }
     } else {
         document.documentElement.classList.remove('has-session');

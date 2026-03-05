@@ -5,59 +5,63 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const logActivity = require('../utils/logger');
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/users/login/google/callback'
+);
 
-// Iniciar sesión / Registro automático con Google
-const googleLogin = async (req, res) => {
-    const { token } = req.body;
-    console.log('[DEBUG-GOOGLE] Petición recibida. Token presente:', !!token);
+// Iniciar sesión / Registro automático con Google (Redirección OAuth2)
+const googleLoginStart = (req, res) => {
     try {
-        console.log('[DEBUG-GOOGLE] Verificando token con audience:', process.env.GOOGLE_CLIENT_ID);
+        const authorizeUrl = client.generateAuthUrl({
+            access_type: 'offline',
+            scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
+            prompt: 'consent'
+        });
+        res.redirect(authorizeUrl);
+    } catch (error) {
+        console.error('[ERROR] googleLoginStart:', error);
+        res.redirect('/#error=' + encodeURIComponent('Error interno iniciando flujo de Google.'));
+    }
+};
+
+const googleLoginCallback = async (req, res) => {
+    const { code } = req.query;
+    if (!code) {
+        return res.redirect('/#error=' + encodeURIComponent('No se recibió código de autorización de Google.'));
+    }
+
+    try {
+        const { tokens } = await client.getToken(code);
+
+        // Verificamos el ID Token para obtener el perfil del usuario
         const ticket = await client.verifyIdToken({
-            idToken: token,
+            idToken: tokens.id_token,
             audience: process.env.GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
-        console.log('[DEBUG-GOOGLE] Payload obtenido:', payload.email);
         const { sub: google_id, email, name, picture: avatar_url } = payload;
 
-        // Verificar si el usuario ya existe
-        console.log('[DEBUG-GOOGLE] Buscando usuario en DB:', email);
         const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
         let user;
 
         if (rows.length > 0) {
             user = rows[0];
-            // Distinguir usuario pendiente de aprobación vs dado de baja
             if (user.is_active === 0 || user.is_active === false) {
-                // Verificar si tiene contraseña (registro email) o si es Google-only
-                // En ambos casos, si is_active=false puede ser pendiente o dado de baja
-                // Usamos un campo extra: si nunca fue activo (created_at reciente y nunca se aprobó)
-                // Lo más simple: devolver 202 si role='usuario' sin historial, o 403 si fue bajado
-                // Para simplificar, todos los is_active=false son "pendiente de aprobación"
-                return res.status(202).json({
-                    pending: true,
-                    message: 'Tu cuenta está pendiente de aprobación por un administrador. Te avisaremos cuando esté habilitada.'
-                });
+                return res.redirect('/#pending=1&message=' + encodeURIComponent('Tu cuenta está pendiente de aprobación por un administrador. Te avisaremos cuando esté habilitada.'));
             }
-            // Actualizar datos de Google en cada inicio de sesión por si cambiaron foto o nombre
             await pool.query('UPDATE users SET google_id = ?, name = ?, avatar_url = ? WHERE id = ?',
                 [google_id, name, avatar_url, user.id]);
         } else {
-            // Nuevo usuario: crear con is_active=false hasta que el admin lo apruebe
             const role = 'usuario';
             await pool.query(
                 'INSERT INTO users (google_id, email, name, avatar_url, role, is_active) VALUES (?, ?, ?, ?, ?, false)',
                 [google_id, email, name, avatar_url, role]
             );
-            // No devolver token — el usuario debe esperar aprobación del admin
-            return res.status(202).json({
-                pending: true,
-                message: 'Tu cuenta ha sido creada exitosamente. Un administrador debe habilitarla antes de que puedas ingresar. Te avisaremos pronto.'
-            });
+            return res.redirect('/#pending=1&message=' + encodeURIComponent('Tu cuenta ha sido creada exitosamente. Un administrador debe habilitarla antes de que puedas ingresar.'));
         }
 
-        // Crear JWT propio para las sesiones (solo usuarios activos llegan aquí)
         const jwtToken = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
             process.env.JWT_SECRET,
@@ -66,13 +70,11 @@ const googleLogin = async (req, res) => {
 
         logActivity(user.id, 'LOGIN', 'Auth', user.id, null, { method: 'google', email: user.email }, req.ip);
 
-        res.json({
-            token: jwtToken,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar_url: user.avatar_url }
-        });
+        // Devolver el token por URL hash
+        res.redirect(`/#token=${jwtToken}`);
     } catch (error) {
-        console.error('Error en googleLogin:', error);
-        res.status(401).json({ message: 'Fallo la validación con Google.', error: error.message });
+        console.error('[ERROR] googleLoginCallback:', error);
+        res.redirect('/#error=' + encodeURIComponent('Fallo la validación con Google: ' + error.message));
     }
 };
 
@@ -252,7 +254,8 @@ const generateResetToken = async (req, res) => {
 };
 
 module.exports = {
-    googleLogin,
+    googleLoginStart,
+    googleLoginCallback,
     getAllUsers,
     getProfile,
     toggleUserStatus,

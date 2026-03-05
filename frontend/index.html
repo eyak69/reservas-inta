@@ -37,7 +37,6 @@
     <link rel="stylesheet" href="/css/style.css?v=3">
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales-all.global.min.js'></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- ANTI-FOUC: oculta el login inmediatamente si hay sesion activa -->
     <style>
         #auth-view {
@@ -95,16 +94,14 @@
                         <span class="flex-shrink-0 mx-4 text-slate-500 text-xs">O entra con Google</span>
                         <div class="flex-grow border-t border-slate-700"></div>
                     </div>
-                </div>
 
-                <!-- Google Sign-In Button Container -->
-                <div id="g_id_onload"
-                    data-client_id="172467646216-7l3gt8fn6q8rluquiqeirhq1c3o0a2bj.apps.googleusercontent.com"
-                    data-context="signin" data-ux_mode="popup" data-callback="handleCredentialResponse"
-                    data-auto_prompt="false">
-                </div>
-                <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_black"
-                    data-text="signin_with" data-size="large" data-logo_alignment="left">
+                    <!-- Google Sign-In Button Native Redirect -->
+                    <a href="/api/users/login/google"
+                        class="w-full bg-white text-slate-900 font-bold py-3 rounded-xl transition-all shadow-md hover:bg-slate-100 flex items-center justify-center gap-3">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google Logo"
+                            class="w-5 h-5" />
+                        Entrar con Google
+                    </a>
                 </div>
 
                 <p class="text-xs text-slate-400 mt-2">¿No tienes cuenta? <a href="#"
@@ -386,7 +383,8 @@
             <h3 id="confirm-title" class="text-slate-100 text-2xl font-bold tracking-tight mb-2 text-center">¿Estás
                 seguro?</h3>
             <p id="confirm-message"
-                class="text-slate-400 text-sm mb-8 text-center uppercase tracking-widest font-medium">Esta acción no se
+                class="text-slate-400 text-sm mb-8 text-center uppercase tracking-widest font-medium">Esta acción no
+                se
                 puede deshacer.</p>
             <div class="flex w-full gap-3">
                 <button id="btn-confirm-cancel"
@@ -400,8 +398,8 @@
     <!-- Toast Container - Fuera de app-view -->
     <div id="toast-container" class="fixed top-6 right-6 z-[70] flex flex-col gap-3 pointer-events-none"></div>
 
-    <!-- ARQUITECTURA MODULAR ES6 — Cache Busting v3 -->
-    <script type="module" src="/js/modules/main.js?v=3"></script>
+    <!-- ARQUITECTURA MODULAR ES6 — Cache Busting v4 -->
+    <script type="module" src="/js/modules/main.js?v=4"></script>
 </body>
 
 </html>
