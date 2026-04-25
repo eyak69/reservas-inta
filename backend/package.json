@@ -8,6 +8,7 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
+    "@google/genai": "^1.50.1",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -17,6 +18,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.0",
+    "openai": "^6.34.0",
     "svg-captcha": "^1.4.0",
     "xss": "^1.0.15"
   }

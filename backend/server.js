@@ -12,6 +12,7 @@ const spaceRoutes = require('./routes/spaceRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const authRoutes = require('./routes/authRoutes');
 const logRoutes = require('./routes/logRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,19 +42,39 @@ const authLimiter = rateLimit({
 // Servir archivos estáticos del frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+const runMigrations = require('./db/migrate');
+const { discoverModels, benchmarkModels } = require('./services/modelDiscovery');
+const { refreshModels }  = require('./controllers/chatController');
+
 // Rutas de la API
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/spaces', spaceRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Para cualquier otra ruta GET no capturada por las API, devolvemos la SPA del frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend', 'index.html'));
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Servidor backend corriendo en el puerto ${PORT}`);
-});
+// Función para iniciar el servidor tras las migraciones
+async function startServer() {
+  try {
+    // Ejecutar migraciones antes de arrancar
+    await runMigrations();
+    await discoverModels();
+    await refreshModels();
+    benchmarkModels(); // sin await — corre en background sin bloquear el arranque
+
+    app.listen(PORT, () => {
+      console.log(`[Server] ✓ Backend corriendo en el puerto ${PORT}`);
+    });
+  } catch (error) {
+    console.error('[Server] ✗ Error crítico al iniciar:', error);
+    process.exit(1); // Abortar si la DB no está lista
+  }
+}
+
+startServer();

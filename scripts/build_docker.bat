@@ -30,7 +30,7 @@ docker login
 echo.
 echo 🏗️  Construyendo Imagen (Linux/AMD64)...
 :: Construimos la imagen utilizando el Dockerfile unificado de la raíz
-docker build --platform linux/amd64 -t %DOCKER_USER%/%IMAGE_NAME%:%TAG% .
+docker build --no-cache --platform linux/amd64 -t %DOCKER_USER%/%IMAGE_NAME%:%TAG% .
 
 if %errorlevel% neq 0 (
     echo [ERROR] La construcción falló.

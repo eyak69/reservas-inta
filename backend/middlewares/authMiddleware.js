@@ -13,7 +13,7 @@ const authMiddleware = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // Validar que el usuario siga existiendo y activo en la BD
-        const [rows] = await pool.query('SELECT is_active FROM users WHERE id = ?', [decoded.id]);
+        const [rows] = await pool.query('SELECT is_active, name, email, role FROM users WHERE id = ?', [decoded.id]);
         if (rows.length === 0) {
             return res.status(401).json({ message: 'El usuario ya no existe en el sistema.' });
         }
@@ -21,7 +21,8 @@ const authMiddleware = async (req, res, next) => {
             return res.status(403).json({ message: 'Tu cuenta ha sido deshabilitada por el administrador.' });
         }
 
-        req.user = decoded; // ej: { id: 1, email: "...", role: "usuario" }
+        // Siempre usar datos frescos de la BD (nombre, rol) — el JWT puede ser stale
+        req.user = { ...decoded, name: rows[0].name, email: rows[0].email, role: rows[0].role };
         next();
     } catch (error) {
         return res.status(401).json({ message: 'Token inválido o expirado.' });

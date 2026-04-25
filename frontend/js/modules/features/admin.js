@@ -3,7 +3,7 @@
 
 import { API_URL } from '../core/api.js';
 import { apiFetch } from '../core/api.js';
-import { showToast, showConfirm, escapeHTML } from '../core/ui.js';
+import { showToast, showConfirm, escapeHTML, showJsonDetails } from '../core/ui.js';
 import {
     currentUsersPage, currentUsersLimit, currentUsersSearch, setUsersPage, setUsersLimit, setUsersSearch,
     currentLogsPage, currentLogsLimit, currentLogsFilters, availableLogActions,
@@ -13,6 +13,9 @@ import {
 // ============ GESTIÓN DE USUARIOS ============
 
 export async function loadUsers(page = 1, search = null) {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    if (currentUser.role !== 'admin') return;
+
     setUsersPage(page);
     if (search !== null) setUsersSearch(search);
 
@@ -202,6 +205,9 @@ async function loadLogActionsCache() {
 }
 
 export async function loadLogs(page = 1, applyFilters = false) {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    if (currentUser.role !== 'admin') return;
+
     setLogsPage(page);
     const main = document.getElementById('main-content');
 
@@ -226,32 +232,71 @@ export async function loadLogs(page = 1, applyFilters = false) {
         if (!res) return;
         const data = await res.json();
 
-        const logsHtml = data.logs.map(l => {
-            // Fix timezone: MySQL returns UTC string without 'Z'.
-            // Ex: "2026-03-05 13:27:00" -> "2026-03-05T13:27:00Z"
+        const logsTableHtml = data.logs.map(l => {
             const utcString = l.created_at.replace(' ', 'T') + 'Z';
-            const date = new Date(utcString).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+            const dateStr = new Date(utcString).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
             const actionClass = l.action.includes('DELETE') || l.action.includes('CANCEL') || l.action.includes('SUSPEND')
                 ? 'bg-red-500/10 text-red-400 border-red-500/30'
                 : l.action.includes('CREATE') || l.action.includes('ACTIVATE')
                     ? 'bg-green-500/10 text-green-400 border-green-500/30'
                     : 'bg-slate-800 text-slate-300';
+
+            const detailsJson = JSON.stringify(l.details);
+
             return `
-                <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition-colors">
-                    <td class="p-4 text-xs font-mono text-slate-400 whitespace-nowrap">${date}</td>
+                <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition-colors hidden md:table-row">
+                    <td class="p-4 text-xs font-mono text-slate-400 whitespace-nowrap">${dateStr}</td>
                     <td class="p-4">
                         <div class="font-bold text-sm text-slate-200 capitalize">${escapeHTML(l.user_name || 'Desconocido')}</div>
-                        <div class="text-[10px] text-slate-500">${escapeHTML(l.user_email || 'n/a')}</div>
+                        <div class="text-[10px] text-slate-500 font-mono">${escapeHTML(l.user_email || 'n/a')}</div>
                     </td>
                     <td class="p-4">
-                        <span class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border border-slate-600 ${actionClass}">${escapeHTML(l.action)}</span>
+                        <span class="text-[9px] uppercase tracking-widest font-black px-2 py-0.5 rounded border ${actionClass}">${escapeHTML(l.action)}</span>
                         <div class="text-[10px] text-slate-500 mt-1 font-bold">${escapeHTML(l.entity)} ${l.entity_id ? `(#${l.entity_id})` : ''}</div>
                     </td>
-                    <td class="p-4 text-xs text-slate-400 font-mono w-1/3">
-                        <div class="bg-slate-900/50 p-2 rounded max-h-16 overflow-y-auto">${escapeHTML(JSON.stringify(l.details) || '{}')}</div>
+                    <td class="p-4">
+                        <button onclick='showLogDetails(${detailsJson})' class="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 hover:bg-primary/20 hover:text-primary border border-slate-700 hover:border-primary/50 rounded-lg text-[11px] font-bold transition-all active:scale-95 group">
+                            <span class="material-symbols-outlined text-[16px] group-hover:rotate-12 transition-transform">data_object</span>
+                            Ver Detalles
+                        </button>
                     </td>
                     <td class="p-4 text-xs text-slate-500 text-right font-mono">${escapeHTML(l.ip_address ? l.ip_address.split(':').pop() : '-')}</td>
                 </tr>
+            `;
+        }).join('');
+
+        const logsCardsHtml = data.logs.map(l => {
+            const utcString = l.created_at.replace(' ', 'T') + 'Z';
+            const dateStr = new Date(utcString).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+            const actionClass = l.action.includes('DELETE') || l.action.includes('CANCEL') || l.action.includes('SUSPEND')
+                ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                : l.action.includes('CREATE') || l.action.includes('ACTIVATE')
+                    ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                    : 'bg-slate-800 text-slate-300';
+
+            const detailsJson = JSON.stringify(l.details);
+
+            return `
+                <div class="md:hidden glass-card p-4 rounded-xl space-y-3 relative overflow-hidden">
+                    <div class="flex justify-between items-start">
+                        <div class="text-[10px] font-mono text-slate-400">${dateStr}</div>
+                        <span class="text-[8px] uppercase tracking-widest font-black px-2 py-0.5 rounded border ${actionClass}">${escapeHTML(l.action)}</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500">
+                            <span class="material-symbols-outlined text-sm">person</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-xs text-slate-200 truncate">${escapeHTML(l.user_name || 'Desconocido')}</div>
+                            <div class="text-[9px] text-slate-500 truncate font-mono">${escapeHTML(l.user_email || 'n/a')}</div>
+                        </div>
+                    </div>
+                    <div class="pt-2 flex justify-between items-center border-t border-white/5">
+                        <div class="text-[10px] text-slate-500 font-bold">${escapeHTML(l.entity)} ${l.entity_id ? `(#${l.entity_id})` : ''}</div>
+                        <button onclick='showLogDetails(${detailsJson})' class="text-primary text-[11px] font-black uppercase tracking-wider hover:underline">Detalles</button>
+                    </div>
+                    <div class="absolute bottom-2 right-4 text-[9px] text-slate-700 font-mono">IP: ${escapeHTML(l.ip_address ? l.ip_address.split(':').pop() : '-')}</div>
+                </div>
             `;
         }).join('');
 
@@ -280,8 +325,8 @@ export async function loadLogs(page = 1, applyFilters = false) {
                     </button>
                 </div>
             </div>
-            <div class="glass-card rounded-2xl overflow-hidden border border-slate-700/50 shadow-2xl">
-                <div class="overflow-x-auto">
+            <div class="md:glass-card rounded-2xl md:overflow-hidden md:border border-slate-700/50 shadow-2xl">
+                <div class="overflow-x-auto hidden md:block">
                     <table class="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr class="bg-slate-900/60 text-[10px] uppercase font-bold tracking-widest text-slate-500 border-b border-slate-700">
@@ -289,9 +334,12 @@ export async function loadLogs(page = 1, applyFilters = false) {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-700/30">
-                            ${data.logs.length ? logsHtml : '<tr><td colspan="5" class="p-8 text-center text-slate-500 text-sm italic">No se encontraron registros.</td></tr>'}
+                            ${data.logs.length ? logsTableHtml : '<tr><td colspan="5" class="p-8 text-center text-slate-500 text-sm italic">No se encontraron registros.</td></tr>'}
                         </tbody>
                     </table>
+                </div>
+                <div class="md:hidden space-y-4">
+                    ${data.logs.length ? logsCardsHtml : '<div class="p-8 text-center text-slate-500 text-sm italic">No se encontraron registros.</div>'}
                 </div>
             </div>
             <div class="flex items-center justify-between px-2 mt-6 text-sm text-slate-400 font-bold">
@@ -324,3 +372,7 @@ export function changeLogsLimit(limit) {
     setLogsLimit(parseInt(limit));
     loadLogs(1);
 }
+
+window.showLogDetails = (details) => {
+    showJsonDetails(details, "Detalles Técnicos del Evento");
+};

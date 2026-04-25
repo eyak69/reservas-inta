@@ -86,7 +86,7 @@
                         class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-3 px-4 text-white text-sm focus:border-primary outline-none" />
                     <input type="password" id="login-password" placeholder="Contraseña"
                         class="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg py-3 px-4 text-white text-sm focus:border-primary outline-none" />
-                    <button onclick="submitLogin()"
+                    <button id="btn-login-submit"
                         class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95">Ingresar</button>
 
                     <div class="relative flex py-2 items-center">
@@ -105,7 +105,7 @@
                 </div>
 
                 <p class="text-xs text-slate-400 mt-2">¿No tienes cuenta? <a href="#"
-                        onclick="toggleAuthView('register')" class="text-primary hover:underline">Regístrate</a></p>
+                        id="link-go-register" class="text-primary hover:underline">Regístrate</a></p>
             </div>
 
             <!-- Register Form (Hidden initially) -->
@@ -146,7 +146,7 @@
                                 class="rounded overflow-hidden h-[50px] flex-1 flex items-center justify-center">
                                 <!-- SVG inside -->
                             </div>
-                            <button onclick="loadCaptcha()" class="text-primary hover:text-white p-2"
+                            <button id="btn-reload-captcha" class="text-primary hover:text-white p-2"
                                 title="Recargar Captcha"><span
                                     class="material-symbols-outlined text-xl">refresh</span></button>
                         </div>
@@ -155,11 +155,11 @@
                             maxlength="5" />
                     </div>
 
-                    <button onclick="submitRegister()"
+                    <button id="btn-register-submit"
                         class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 mt-2 rounded-xl transition-all shadow-lg active:scale-95">Completar
                         Registro</button>
                 </div>
-                <button onclick="toggleAuthView('login')"
+                <button id="link-go-login"
                     class="text-xs text-slate-400 mt-2 hover:text-white transition-colors">Volver al inicio de
                     sesión</button>
             </div>
@@ -345,10 +345,9 @@
                         class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl shadow-[0_4px_20px_rgb(43,108,238,0.4)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
                         <span class="material-symbols-outlined text-[20px]">save</span> <span>Guardar Espacio</span>
                     </button>
-                </footer>
+        </footer>
             </div>
         </div>
-
     </div>
 
     <!-- Custom Alert Modal (Success/Info) - Fuera de app-view para funcionar en auth-view también -->
@@ -395,11 +394,55 @@
         </div>
     </div>
 
-    <!-- Toast Container - Fuera de app-view -->
-    <div id="toast-container" class="fixed top-6 right-6 z-[70] flex flex-col gap-3 pointer-events-none"></div>
+    <!-- Chat Widget (Nivel Superior para evitar bloqueos) -->
+    <div id="chat-widget" style="display:none !important; position: fixed; z-index: 9999;">
+        <button id="chat-toggle-btn" onclick="toggleChat()" style="position: fixed; bottom: 24px; right: 24px; z-index: 10000; width: 56px; height: 56px; border-radius: 50%; background: #2b6cee; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <span class="material-symbols-outlined" id="chat-toggle-icon">smart_toy</span>
+        </button>
+        <!-- Panel del chat simplificado para debug -->
+        <div id="chat-panel" class="chat-panel-closed">
+            <div class="chat-header">
+                <div class="chat-header-info">
+                    <span class="material-symbols-outlined" style="font-size:20px;color:#2b6cee;">smart_toy</span>
+                    <div>
+                        <div style="font-weight:700;font-size:14px;">Asistente INTA</div>
+                        <div style="font-size:11px;opacity:0.6;">Modo Resiliencia Activo</div>
+                    </div>
+                </div>
+                <button onclick="toggleChat()" class="chat-close-btn"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <div class="chat-bubble assistant">Hola! El chat se cargó en modo de emergencia. ¿En qué puedo ayudarte?</div>
+            </div>
+            <div class="chat-input-area">
+                <textarea id="chat-input" class="chat-input" placeholder="Consulta..." rows="1" onkeydown="handleChatKey(event)"></textarea>
+                <button id="chat-send-btn" onclick="sendChatMessage()" class="chat-send-btn"><span class="material-symbols-outlined">send</span></button>
+            </div>
+        </div>
+    </div>
 
-    <!-- ARQUITECTURA MODULAR ES6 — Cache Busting v4 -->
-    <script type="module" src="/js/modules/main.js?v=4"></script>
+    <!-- Script de Emergencia: Forza visibilidad si hay token -->
+    <script>
+        (function() {
+            function forceChat() {
+                if (localStorage.getItem('token')) {
+                    const chat = document.getElementById('chat-widget');
+                    if (chat) {
+                        chat.style.setProperty('display', 'block', 'important');
+                        console.log('🚀 Chat forzado por script de emergencia');
+                    }
+                }
+            }
+            window.addEventListener('load', forceChat);
+            setTimeout(forceChat, 2000); // Intento secundario tras 2 segundos
+        })();
+    </script>
+
+    <!-- Toast container — siempre presente para evitar que showToast falle si document.body no está listo -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- ARQUITECTURA MODULAR ES6 — Cache Busting v15 -->
+    <script type="module" src="/js/modules/main.js?v=15"></script>
 </body>
 
 </html>

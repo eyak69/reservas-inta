@@ -2,12 +2,13 @@
 // Este archivo orquesta todos los módulos e inicializa la aplicación.
 // Las funciones se exponen en window.* para compatibilidad con los onclick del HTML.
 
-import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, openPasswordManagement } from './features/auth.js';
+import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, openPasswordManagement, loadCaptcha } from './features/auth.js';
 import { togglePasswordVisibility } from './core/ui.js';
 import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, submitReservation } from './features/dashboard.js';
 import { loadReservations, renderReservations, updateReservationStatus, cancelReservation, changeReservationsLimit } from './features/reservations.js';
 import { loadCalendar } from './features/calendar.js';
 import { loadUsers, changeUsersLimit, toggleUserStatus, changeUserRole, generateResetLink, copyResetLink, loadLogs, changeLogsLimit } from './features/admin.js';
+import { initChat, destroyChat, toggleChat, handleChatKey, sendChatMessage } from './features/chat.js';
 
 // ======= ENRUTADOR SPA =======
 export function navigate(view) {
@@ -66,7 +67,20 @@ window.copyResetLink = copyResetLink;
 window.loadLogs = loadLogs;
 window.changeLogsLimit = changeLogsLimit;
 
+window.initChat = initChat;
+window.destroyChat = destroyChat;
+window.toggleChat = toggleChat;
+window.handleChatKey = handleChatKey;
+window.sendChatMessage = sendChatMessage;
+
 // ======= INICIALIZACIÓN =======
 window.addEventListener('DOMContentLoaded', () => {
+    // Listeners de auth — evita race condition en producción con onclick en HTML
+    document.getElementById('btn-login-submit')?.addEventListener('click', submitLogin);
+    document.getElementById('btn-register-submit')?.addEventListener('click', submitRegister);
+    document.getElementById('btn-reload-captcha')?.addEventListener('click', loadCaptcha);
+    document.getElementById('link-go-register')?.addEventListener('click', (e) => { e.preventDefault(); toggleAuthView('register'); });
+    document.getElementById('link-go-login')?.addEventListener('click', () => toggleAuthView('login'));
+
     checkAuth();
 });

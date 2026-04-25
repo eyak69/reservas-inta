@@ -63,7 +63,7 @@ const googleLoginCallback = async (req, res) => {
         }
 
         const jwtToken = jwt.sign(
-            { id: user.id, email: user.email, role: user.role },
+            { id: user.id, email: user.email, name: name || user.name, role: user.role, avatar_url: avatar_url || user.avatar_url },
             process.env.JWT_SECRET,
             { expiresIn: '12h' }
         );

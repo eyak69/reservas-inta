@@ -104,6 +104,7 @@ export async function submitLogin() {
         } else if (res.ok && data.token) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
+            localStorage.setItem('activeView', 'dashboard');
             window.location.reload();
         } else {
             showToast(data.message || 'Error al iniciar sesión');
@@ -176,7 +177,15 @@ export async function checkAuth() {
     const appView = document.getElementById('app-view');
 
     if (token) {
-        document.documentElement.classList.remove('has-session');
+        document.documentElement.classList.add('has-session');
+
+        const main = document.getElementById('main-content');
+        if (main && !main.innerHTML.trim()) {
+            main.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-500 opacity-50 animate-pulse pt-20">
+                <span class="material-symbols-outlined text-6xl mb-4">sync</span>
+                <p class="font-medium tracking-widest uppercase text-xs">Sincronizando sesión...</p>
+            </div>`;
+        }
 
         // Primero obtener el perfil real para nutrir localStorage ANTES de renderizar la app
         try {
@@ -223,6 +232,15 @@ export async function checkAuth() {
         } catch (e) {
             console.error('Error cargando perfil:', e);
         }
+
+        // Inicializar chat de forma independiente y asíncrona
+        setTimeout(() => {
+            if (typeof window.initChat === 'function') {
+                window.initChat();
+            } else {
+                console.warn('⚠️ window.initChat no está lista todavía');
+            }
+        }, 500);
     } else {
         document.documentElement.classList.remove('has-session');
         authView.style.display = '';
@@ -450,6 +468,7 @@ export async function handleResetPasswordFlow() {
 
 // --- Logout ---
 export function logout(force = false) {
+    if (typeof window.destroyChat === 'function') window.destroyChat();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     if (force) localStorage.removeItem('activeView');
