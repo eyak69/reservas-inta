@@ -443,25 +443,29 @@ async function ver_logs({ fecha_desde, fecha_hasta, usuario, accion }) {
 // ─── Dispatcher principal ──────────────────────────────────────────────────────
 
 async function executeTool(toolName, toolArgs, userId, userRole, userIp) {
-    // Limpiar args: sacar nulls y strings vacíos para que no rompan validaciones de schema
-    toolArgs = Object.fromEntries(Object.entries(toolArgs).filter(([, v]) => v !== null && v !== ''));
+    // Normalizar toolArgs: asegurar que sea un objeto y limpiar nulls/vacíos
+    const args = toolArgs || {};
+    const sanitizedArgs = Object.fromEntries(
+        Object.entries(args).filter(([, v]) => v !== null && v !== '')
+    );
+
     // Guard de permisos: si la tool es de admin y el usuario no lo es, rechazar
     if (TOOLS_ADMIN.has(toolName) && userRole !== 'admin') {
         return { error: 'No tenés permisos para realizar esta acción. Se requiere rol de administrador.' };
     }
 
     switch (toolName) {
-        case 'mis_reservas':            return await mis_reservas(toolArgs, userId);
+        case 'mis_reservas':            return await mis_reservas(sanitizedArgs, userId);
         case 'listar_espacios':         return await listar_espacios();
-        case 'espacios_disponibles':    return await espacios_disponibles(toolArgs);
-        case 'crear_reserva':           return await crear_reserva(toolArgs, userId, userIp);
-        case 'cancelar_reserva':        return await cancelar_reserva(toolArgs, userId, userRole);
-        case 'todas_las_reservas':      return await todas_las_reservas(toolArgs);
-        case 'aprobar_rechazar_reserva':return await aprobar_rechazar_reserva(toolArgs, userId, userIp);
-        case 'gestionar_espacio':       return await gestionar_espacio(toolArgs, userId, userIp);
-        case 'listar_usuarios':         return await listar_usuarios(toolArgs);
-        case 'gestionar_usuario':       return await gestionar_usuario(toolArgs, userId, userIp);
-        case 'ver_logs':                return await ver_logs(toolArgs);
+        case 'espacios_disponibles':    return await espacios_disponibles(sanitizedArgs);
+        case 'crear_reserva':           return await crear_reserva(sanitizedArgs, userId, userIp);
+        case 'cancelar_reserva':        return await cancelar_reserva(sanitizedArgs, userId, userRole);
+        case 'todas_las_reservas':      return await todas_las_reservas(sanitizedArgs);
+        case 'aprobar_rechazar_reserva':return await aprobar_rechazar_reserva(sanitizedArgs, userId, userIp);
+        case 'gestionar_espacio':       return await gestionar_espacio(sanitizedArgs, userId, userIp);
+        case 'listar_usuarios':         return await listar_usuarios(sanitizedArgs);
+        case 'gestionar_usuario':       return await gestionar_usuario(sanitizedArgs, userId, userIp);
+        case 'ver_logs':                return await ver_logs(sanitizedArgs);
         default:                        return { error: `Tool desconocida: ${toolName}` };
     }
 }

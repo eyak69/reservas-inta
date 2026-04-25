@@ -36,3 +36,13 @@
     - Se configuró el puerto por defecto en `server.js` como **3001** (`process.env.PORT || 3001`).
     - Se mantuvo la configuración de **Docker (Dockerfile y Compose)** en el puerto **3000**.
 - **Resultado:** El desarrollador puede correr `npm run dev` localmente sin interferencias, mientras que el despliegue en producción sigue siendo transparente y compatible con la infraestructura existente de Coolify/Traefik.
+
+## [2026-04-25] Modernización y Blindaje del Asistente IA
+- **Cambio:** Refactorización total de la lógica de prompts y persistencia del chat.
+- **Arquitectura de Prompts (Regla 12):** Se desacoplaron las guías de negocio y personalidad en `backend/config/chatPrompts.js`. El controlador ahora solo inyecta contexto dinámico.
+- **Resiliencia de Memoria (Regla 4):** Las sesiones de chat ahora se "rehidratan" desde la base de datos (`chat_messages`) si no existen en RAM. Esto garantiza que el asistente no pierda el contexto tras reinicios del servidor o despliegues.
+- **Aprendizaje Adaptativo (Regla 7):** Se integró el sistema de *Few-Shot Dinámico*. El asistente consulta sus interacciones más exitosas en la DB para guiar su comportamiento actual.
+- **Seguridad y Robustez (Regla 10 y 11):**
+    - Se implementó sanitización de inputs para prevenir XSS e inyecciones de prompt.
+    - Se blindó `executeTool` para manejar argumentos nulos (hotfix por error detectado con Llama-3 en herramientas sin parámetros).
+- **Lección Aprendida:** Los modelos de lenguaje pequeños o via APIs de terceros (Groq) a veces omiten el objeto de argumentos en herramientas de tipo "void". La normalización de parámetros en el dispatcher es obligatoria para evitar crashes de Node.
