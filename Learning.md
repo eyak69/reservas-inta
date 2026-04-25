@@ -46,3 +46,21 @@
     - Se implementó sanitización de inputs para prevenir XSS e inyecciones de prompt.
     - Se blindó `executeTool` para manejar argumentos nulos (hotfix por error detectado con Llama-3 en herramientas sin parámetros).
 - **Lección Aprendida:** Los modelos de lenguaje pequeños o via APIs de terceros (Groq) a veces omiten el objeto de argumentos en herramientas de tipo "void". La normalización de parámetros en el dispatcher es obligatoria para evitar crashes de Node.
+## 🎓 Lecciones del Test Profundo (Abril 2026)
+
+### 1. Incompatibilidad de Tipos en Tool Calling (LLM vs Schema)
+- **Error:** Los modelos (especialmente OpenAI) fallan con error 400 si un esquema dice `NUMBER` y el bot envía `"1"`.
+- **Decisión:** Se cambiaron los IDs a `STRING` en las declaraciones de herramientas.
+- **Blindaje:** `executeTool` ahora sanitiza y convierte a `Number` internamente. Esto hace al backend agnóstico a la imprecisión del LLM.
+
+### 2. Poda de Contexto (Pruning) vs Rate Limits
+- **Error:** Conversaciones largas con muchos resultados de herramientas superan el TPM (Tokens Per Minute) de los proveedores.
+- **Decisión:** Implementada poda en `chatController.js`. Se reemplaza información de turnos antiguos (>4 pares) por un placeholder. Solo se mantiene el contexto fresco.
+
+### 3. Interferencia Semántica (RAG Shadowing)
+- **Error:** Los ejemplos recuperados de Qdrant pueden "envenenar" el razonamiento si no son 100% relevantes. El bot intentaba cancelar antes de reservar porque recordó un test anterior.
+- **Decisión:** Aumentado `score_threshold` a 0.90 y encapsulado de ejemplos en tags `<ejemplo_de_aprendizaje>` para separar hechos de referencias de estilo.
+
+### 4. Cadena de Fallback Indestructible
+- **Error:** El sistema quedaba "ciego" si Groq o Gemini fallaban por saturación.
+- **Decisión:** Se movió OpenAI (gpt-4o-mini) al principio del fallback estático. Es el "ancla de estabilidad" del sistema.

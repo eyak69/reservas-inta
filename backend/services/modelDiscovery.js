@@ -44,6 +44,21 @@ function calcPriority(provider, contextWindow, maxOutput) {
     return Math.round(Math.max(1, score));
 }
 
+function calcIntelligence(modelId) {
+    const id = modelId.toLowerCase();
+    if (id.includes('gpt-4o') && !id.includes('mini')) return 100;
+    if (id.includes('llama-4')) return 98;
+    if (id.includes('llama-3.3-70b')) return 95;
+    if (id.includes('qwen') && id.includes('235b')) return 95;
+    if (id.includes('pro')) return 95;
+    if (id.includes('gpt-4o-mini')) return 85;
+    if (id.includes('flash')) return 85;
+    if (id.includes('qwen') && id.includes('32b')) return 80;
+    if (id.includes('llama-3.1-70b')) return 90;
+    if (id.includes('8b') || id.includes('1b') || id.includes('3b')) return 40; // Los "pelotudos"
+    return 60; // Por defecto medio
+}
+
 async function fetchGroqModels(apiKey) {
     const res = await fetch('https://api.groq.com/openai/v1/models', {
         headers: { Authorization: `Bearer ${apiKey}` }
@@ -94,20 +109,38 @@ async function fetchGeminiModels(apiKey) {
         }));
 }
 
+async function fetchOpenAIModels(apiKey) {
+    const res = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${apiKey}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.data
+        .filter(m => m.id.startsWith('gpt-4o') && isUsable(m.id, 'openai'))
+        .map(m => ({
+            model_id:         m.id,
+            context_window:   128000,
+            max_output_tokens: 4096,
+            tokens_per_sec:   PROVIDER_SPEED.openai,
+        }));
+}
+
 async function syncModels(provider, models, conn) {
     for (const m of models) {
         const priority = calcPriority(provider, m.context_window, m.max_output_tokens);
+        const intelligence = calcIntelligence(m.model_id);
         await conn.query(
-            `INSERT INTO ai_models (provider, model_id, is_active, priority, context_window, max_output_tokens, tokens_per_sec)
-             VALUES (?, ?, TRUE, ?, ?, ?, ?)
+            `INSERT INTO ai_models (provider, model_id, is_active, priority, intelligence_score, context_window, max_output_tokens, tokens_per_sec)
+             VALUES (?, ?, TRUE, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
                is_active          = TRUE,
                priority           = VALUES(priority),
+               intelligence_score = VALUES(intelligence_score),
                context_window     = VALUES(context_window),
                max_output_tokens  = VALUES(max_output_tokens),
                tokens_per_sec     = VALUES(tokens_per_sec),
                updated_at         = NOW()`,
-            [provider, m.model_id, priority, m.context_window, m.max_output_tokens, m.tokens_per_sec]
+            [provider, m.model_id, priority, intelligence, m.context_window, m.max_output_tokens, m.tokens_per_sec]
         );
     }
 }
@@ -122,6 +155,7 @@ async function discoverModels() {
         { provider: 'cerebras', fn: () => fetchCerebrasModels(process.env.CEREBRAS_API_KEY) },
         { provider: 'groq',     fn: () => fetchGroqModels(process.env.GROQ_API_KEY)         },
         { provider: 'gemini',   fn: () => fetchGeminiModels(process.env.GEMINI_API_KEY)      },
+        { provider: 'openai',   fn: () => fetchOpenAIModels(process.env.OPENAI_API_KEY)      },
     ];
 
     await Promise.all(fetchers.map(async ({ provider, fn }) => {
@@ -167,6 +201,7 @@ async function benchmarkModels() {
 
     const groq     = new OpenAI({ apiKey: process.env.GROQ_API_KEY,     baseURL: 'https://api.groq.com/openai/v1' });
     const cerebras = new OpenAI({ apiKey: process.env.CEREBRAS_API_KEY, baseURL: 'https://api.cerebras.ai/v1'    });
+    const openai   = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const gemini   = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     const PROMPT = [{ role: 'user', content: 'Respondé solo "ok".' }];
@@ -183,7 +218,9 @@ async function benchmarkModels() {
                 });
                 hasContent = !!r.candidates?.[0]?.content?.parts?.[0]?.text;
             } else {
-                const client = provider === 'groq' ? groq : provider === 'cerebras' ? cerebras : null;
+                const client = provider === 'groq' ? groq : 
+                               provider === 'cerebras' ? cerebras : 
+                               provider === 'openai' ? openai : null;
                 if (!client) return;
                 const r = await client.chat.completions.create({ model: modelId, messages: PROMPT, max_tokens: 5 });
                 hasContent = !!r.choices?.[0]?.message?.content;
@@ -231,10 +268,10 @@ async function getActiveModels() {
         `SELECT provider, model_id FROM ai_models
          WHERE is_active = TRUE
          ORDER BY
+           intelligence_score DESC,
            CASE WHEN last_error IS NOT NULL THEN 1 ELSE 0 END ASC,
            CASE WHEN avg_response_ms IS NULL THEN 1 ELSE 0 END ASC,
-           avg_response_ms ASC,
-           priority ASC`
+           avg_response_ms ASC`
     );
     return rows.map(r => ({ provider: r.provider, model: r.model_id }));
 }

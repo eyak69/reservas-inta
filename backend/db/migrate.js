@@ -85,6 +85,7 @@ async function runMigrations() {
                 model_id            VARCHAR(150) NOT NULL,
                 is_active           BOOLEAN DEFAULT TRUE,
                 priority            INT DEFAULT 100,
+                intelligence_score  INT DEFAULT 50,
                 context_window      INT NULL,
                 max_output_tokens   INT NULL,
                 tokens_per_sec      INT NULL,
@@ -101,6 +102,7 @@ async function runMigrations() {
             'ADD COLUMN call_count        INT NOT NULL DEFAULT 0 AFTER avg_response_ms',
             'ADD COLUMN last_error        TEXT NULL AFTER call_count',
             'ADD COLUMN error_at          DATETIME NULL AFTER last_error',
+            'ADD COLUMN intelligence_score INT DEFAULT 50 AFTER priority',
         ]) {
             try { await conn.query(`ALTER TABLE ai_models ${col}`); } catch (e) { /* ya existe */ }
         }

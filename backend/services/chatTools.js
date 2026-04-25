@@ -45,7 +45,7 @@ const toolDeclarations = [
         parameters: {
             type: 'OBJECT',
             properties: {
-                space_id:    { type: 'NUMBER', description: 'ID del espacio a reservar' },
+                space_id:    { type: 'STRING', description: 'ID del espacio a reservar (numérico)' },
                 fecha:       { type: 'STRING', description: 'Fecha YYYY-MM-DD' },
                 hora_inicio: { type: 'STRING', description: 'Hora inicio HH:MM' },
                 hora_fin:    { type: 'STRING', description: 'Hora fin HH:MM' },
@@ -60,7 +60,7 @@ const toolDeclarations = [
         parameters: {
             type: 'OBJECT',
             properties: {
-                reserva_id: { type: 'NUMBER', description: 'ID de la reserva a cancelar' }
+                reserva_id: { type: 'STRING', description: 'ID de la reserva a cancelar (numérico)' }
             },
             required: ['reserva_id']
         }
@@ -86,7 +86,7 @@ const toolDeclarations = [
         parameters: {
             type: 'OBJECT',
             properties: {
-                reserva_id: { type: 'NUMBER', description: 'ID de la reserva' },
+                reserva_id: { type: 'STRING', description: 'ID de la reserva (numérico)' },
                 estado:     { type: 'STRING', description: 'Nuevo estado: aprobada | rechazada' }
             },
             required: ['reserva_id', 'estado']
@@ -258,12 +258,14 @@ async function crear_reserva({ space_id, fecha, hora_inicio, hora_fin, comentari
     logActivity(userId, 'CREATE_RESERVATION', 'Reserva', result.insertId, space_id, { start_time, end_time, via: 'chat' }, userIp);
 
     return {
-        resultado: `Reserva creada para "${espacios[0].name}" el ${fecha} de ${hora_inicio} a ${hora_fin}. Queda pendiente de aprobación.`,
+        resultado: `Reserva #${result.insertId} creada para "${espacios[0].nombre}" el ${fecha} de ${hora_inicio} a ${hora_fin}. Queda pendiente de aprobación.`,
         reserva_id: result.insertId
     };
 }
 
 async function cancelar_reserva({ reserva_id }, userId, userRole) {
+    if (!reserva_id) return { error: 'Falta el reserva_id. Por favor, pedile al usuario que especifique cuál cancelar o mirá en sus reservas recientes.' };
+
     const [rows] = await pool.query(
         'SELECT user_id, space_id, status FROM reservations WHERE id = ?', [reserva_id]
     );
@@ -443,11 +445,19 @@ async function ver_logs({ fecha_desde, fecha_hasta, usuario, accion }) {
 // ─── Dispatcher principal ──────────────────────────────────────────────────────
 
 async function executeTool(toolName, toolArgs, userId, userRole, userIp) {
-    // Normalizar toolArgs: asegurar que sea un objeto y limpiar nulls/vacíos
-    const args = toolArgs || {};
-    const sanitizedArgs = Object.fromEntries(
-        Object.entries(args).filter(([, v]) => v !== null && v !== '')
-    );
+    // Normalizar args para modelos que mandan null (como Llama-3) o tipos incorrectos
+    const sanitizedArgs = {};
+    for (const [key, value] of Object.entries(toolArgs || {})) {
+        if (value === null) continue;
+        
+        // Forzar numéricos donde sabemos que deben serlo (Regla 11: Resiliencia)
+        if (['space_id', 'reserva_id', 'user_id', 'usuario_id'].includes(key)) {
+            const num = Number(value);
+            sanitizedArgs[key] = isNaN(num) ? value : num;
+        } else {
+            sanitizedArgs[key] = value;
+        }
+    }
 
     // Guard de permisos: si la tool es de admin y el usuario no lo es, rechazar
     if (TOOLS_ADMIN.has(toolName) && userRole !== 'admin') {

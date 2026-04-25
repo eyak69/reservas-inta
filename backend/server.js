@@ -45,6 +45,7 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 const runMigrations = require('./db/migrate');
 const { discoverModels, benchmarkModels } = require('./services/modelDiscovery');
 const { refreshModels }  = require('./controllers/chatController');
+const vectorService = require('./services/vectorService');
 
 // Rutas de la API
 app.use('/api/auth', authLimiter, authRoutes);
@@ -66,6 +67,7 @@ async function startServer() {
     await runMigrations();
     await discoverModels();
     await refreshModels();
+    await vectorService.ensureCollection(); // Asegurar infraestructura vectorial
     benchmarkModels(); // sin await — corre en background sin bloquear el arranque
 
     app.listen(PORT, () => {
@@ -78,3 +80,4 @@ async function startServer() {
 }
 
 startServer();
+ 

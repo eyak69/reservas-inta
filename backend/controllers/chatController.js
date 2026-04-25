@@ -114,9 +114,10 @@ async function logChatMessage({ userId, sessionId, role, message, systemPrompt, 
 // Se carga desde BD al arrancar (discoverModels en server.js) y se refresca cada hora.
 // Fallback estático por si la BD aún no tiene datos (primer arranque antes de discovery).
 const STATIC_FALLBACK = [
+    { provider: 'openai',   model: 'gpt-4o-mini'                    },
+    { provider: 'gemini',   model: 'gemini-2.0-flash'               },
     { provider: 'cerebras', model: 'qwen-3-235b-a22b-instruct-2507' },
     { provider: 'groq',     model: 'llama-3.3-70b-versatile'        },
-    { provider: 'gemini',   model: 'gemini-2.0-flash'               },
 ];
 
 let MODELS_FALLBACK = [...STATIC_FALLBACK];
@@ -258,12 +259,16 @@ async function callOpenAI(model, contents, systemPrompt, userRole, client = open
 
 // ─── Dispatcher unificado ──────────────────────────────────────────────────────
 async function generateWithFallback(contents, systemPrompt, userRole, fixedEntry = null) {
-    const candidates = fixedEntry ? [fixedEntry] : MODELS_FALLBACK;
+    // Si no hay modelos en la lista dinámica, volvemos a la estática de emergencia
+    let candidates = fixedEntry ? [fixedEntry] : (MODELS_FALLBACK.length > 0 ? MODELS_FALLBACK : STATIC_FALLBACK);
 
     for (const entry of candidates) {
         try {
             const t0 = Date.now();
             let result;
+            
+            console.log(`[${ts()}] [ChatController] Intentando con ${entry.provider}/${entry.model}...`);
+
             if (entry.provider === 'gemini') {
                 const allowedTools = toolDeclarations.filter(t => {
                     const is_admin_tool = TOOLS_ADMIN.has(t.name);
@@ -277,36 +282,41 @@ async function generateWithFallback(contents, systemPrompt, userRole, fixedEntry
             } else {
                 result = await callOpenAI(entry.model, contents, systemPrompt, userRole);
             }
+
             const responseMs = Date.now() - t0;
             recordResponseTime(entry.provider, entry.model, responseMs);
-            if (entry !== MODELS_FALLBACK[0]) {
-                console.log(`[${ts()}] [ChatController] Fallback activo: usando ${entry.provider}/${entry.model}`);
-            }
+            
             return { result, entry };
         } catch (error) {
+            entry.lastErrorMsg = error.message;
             if (isRetryableError(error)) {
-                console.warn(`[${ts()}] [ChatController] Modelo ${entry.provider}/${entry.model} no disponible (${error.message.slice(0, 60)}...). Probando siguiente...`);
+                console.warn(`[${ts()}] [ChatController] ⚠ Modelo ${entry.provider}/${entry.model} falló: ${error.message.slice(0, 80)}`);
                 recordError(entry.provider, entry.model, error.message);
-                // Sacarlo de memoria para no intentarlo de nuevo hasta el próximo refreshModels
-                MODELS_FALLBACK = MODELS_FALLBACK.filter(m => !(m.provider === entry.provider && m.model === entry.model));
+                
+                // Solo lo sacamos de la lista si hay más opciones
+                if (MODELS_FALLBACK.length > 1) {
+                    MODELS_FALLBACK = MODELS_FALLBACK.filter(m => !(m.provider === entry.provider && m.model === entry.model));
+                }
                 continue;
             }
+            console.error(`[${ts()}] [ChatController] ❌ Error no reintentable en ${entry.provider}:`, error.message);
             throw error;
         }
     }
-    throw new Error('Todos los modelos están sin disponibilidad en este momento. Intentá de nuevo en unos minutos.');
+    const lastError = candidates[candidates.length - 1]?.lastErrorMsg || 'Causa desconocida';
+    throw new Error(`Todos los modelos están saturados o sin cuota. Último error: ${lastError}`);
 }
 
 // ─── System prompts por rol ────────────────────────────────────────────────────
 
-async function buildSystemPrompt(user) {
+async function buildSystemPrompt(user, currentUserMessage = null) {
     const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
     const hoy   = ahora.toISOString().split('T')[0];
     const diaSemana = ahora.toLocaleDateString('es-AR', { weekday: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
     const esAdmin = user.role === 'admin';
 
-    // Obtener ejemplos aprendidos de la base de datos
-    const dynamicExamples = await buildFewShotBlock();
+    // Obtener ejemplos aprendidos de la base de datos (Búsqueda Semántica)
+    const dynamicExamples = await buildFewShotBlock(currentUserMessage);
 
     return `
 ${prompts.PERSONALIDAD}
@@ -354,22 +364,30 @@ const sendMessage = async (req, res) => {
     const t0 = Date.now();
 
     try {
-        const systemPrompt = await buildSystemPrompt(user);
+        const systemPrompt = await buildSystemPrompt(user, cleanMessage);
 
         console.log(`[${ts()}] [Chat:${reqId}] ── SYSTEM PROMPT (${user.role}) ──────────────────`);
         console.log(systemPrompt);
         console.log(`[${ts()}] [Chat:${reqId}] ────────────────────────────────────────────────`);
 
-        // Construir contents desde la memoria del servidor + mensaje actual
+        // ─── Poda de Contexto (Regla 11: Resiliencia) ────────────────────────────────
+        // Solo mantenemos los últimos 6 mensajes del historial + el actual
+        // Y eliminamos resultados de herramientas de turnos antiguos para ahorrar tokens
+        const prunedHistory = session.history.slice(-12); // 6 pares aprox
+        
         const contents = [
-            ...session.history.map(turn => ({
-                role: turn.role,
-                parts: [{ text: turn.text }]
-            })),
+            ...prunedHistory.map((turn, idx) => {
+                // Si el turno es muy viejo (no es de los últimos 4), le quitamos el peso de tool results
+                const isOld = idx < prunedHistory.length - 4;
+                return {
+                    role: turn.role,
+                    parts: [{ text: isOld ? `[Información antigua omitida para ahorrar espacio]` : turn.text }]
+                };
+            }),
             { role: 'user', parts: [{ text: cleanMessage }] }
         ];
 
-        console.log(`[${ts()}] [Chat:${reqId}] ── CONTENIDO ENVIADO AL MODELO ─────────────────`);
+        console.log(`[${ts()}] [Chat:${reqId}] ── CONTENIDO ENVIADO (Pruned) ─────────────────`);
         contents.forEach((c, i) => {
             const texto = c.parts?.map(p => p.text || (p.functionCall ? `[tool_call: ${p.functionCall.name}]` : (p.functionResponse ? `[tool_result: ${p.functionResponse.name}]` : '[part]'))).join(' ') || '';
             console.log(`  [${i}] ${c.role}: ${texto.slice(0, 200)}${texto.length > 200 ? '...' : ''}`);
@@ -465,11 +483,12 @@ const sendMessage = async (req, res) => {
         res.json({ reply: replyText });
 
     } catch (error) {
-        console.error(`[${ts()}] [Chat:${reqId}] ✗ ERROR (${Date.now() - t0}ms):`, error.message);
-        const userMessage = isRetryableError(error) || error.message.includes('modelos')
-            ? 'El servicio de IA está con alta demanda en este momento. Intentá de nuevo en unos segundos.'
-            : 'Error al procesar tu mensaje. Intentá de nuevo.';
-        res.status(500).json({ message: userMessage });
+        console.error(`[${ts()}] [Chat:${reqId}] ❌ Error CRÍTICO en sendMessage:`);
+        console.error(error.stack || error);
+        res.status(500).json({ 
+            message: 'Error al procesar tu mensaje. Intentá de nuevo.',
+            debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 
