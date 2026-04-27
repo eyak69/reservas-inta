@@ -1,4 +1,5 @@
 const { OAuth2Client } = require('google-auth-library');
+const { sendNotificationEvent } = require('../services/notificationService');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const crypto = require('crypto');
@@ -49,7 +50,7 @@ const googleLoginCallback = async (req, res) => {
         if (rows.length > 0) {
             user = rows[0];
             if (user.is_active === 0 || user.is_active === false) {
-                return res.redirect('/#pending=1&message=' + encodeURIComponent('Tu cuenta está pendiente de aprobación por un administrador. Te avisaremos cuando esté habilitada.'));
+                return res.redirect('/#pending=1&message=' + encodeURIComponent('Tu cuenta está pendiente de aprobación por un administrador. Una vez habilitada podrás ingresar al sistema.'));
             }
             await pool.query('UPDATE users SET google_id = ?, name = ?, avatar_url = ? WHERE id = ?',
                 [google_id, name, avatar_url, user.id]);
@@ -59,7 +60,16 @@ const googleLoginCallback = async (req, res) => {
                 'INSERT INTO users (google_id, email, name, avatar_url, role, is_active) VALUES (?, ?, ?, ?, ?, false)',
                 [google_id, email, name, avatar_url, role]
             );
-            return res.redirect('/#pending=1&message=' + encodeURIComponent('Tu cuenta ha sido creada exitosamente. Un administrador debe habilitarla antes de que puedas ingresar.'));
+
+            // Alerta multicanal para Admins (Regla 12)
+            await sendNotificationEvent({
+                title: 'Nuevo Usuario Registrado (Google)',
+                message: `👤 Nombre: ${name}\n📧 Email: ${email}\n\nEl usuario ya está registrado y se encuentra pendiente de aprobación. Debes habilitar su cuenta desde el panel de administración.`,
+                toAdmins: true,
+                type: 'info'
+            });
+
+            return res.redirect('/#pending=1&message=' + encodeURIComponent('Tu cuenta está pendiente de aprobación por un administrador. Una vez habilitada podrás ingresar al sistema.'));
         }
 
         const jwtToken = jwt.sign(
@@ -85,20 +95,45 @@ const getAllUsers = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
         const search = req.query.search || '';
+        
+        // Filtros adicionales (Regla 7: Mejora Continua)
+        const status = req.query.status; // '1' o '0'
+        const role = req.query.role;     // 'admin' o 'usuario'
+        const telegram = req.query.telegram; // '1' o '0'
 
-        let whereClause = '';
+        let conditions = [];
         let params = [];
 
         if (search) {
-            whereClause = 'WHERE name LIKE ? OR email LIKE ?';
+            conditions.push('(u.name LIKE ? OR u.email LIKE ?)');
             params.push(`%${search}%`, `%${search}%`);
         }
 
-        // Conteo total para paginación
-        const countSql = `SELECT COUNT(*) as total FROM users ${whereClause}`;
+        if (status !== undefined && status !== '') {
+            conditions.push('u.is_active = ?');
+            params.push(status === '1' ? 1 : 0);
+        }
+
+        if (role !== undefined && role !== '') {
+            conditions.push('u.role = ?');
+            params.push(role);
+        }
+
+        if (telegram !== undefined && telegram !== '') {
+            if (telegram === '1') {
+                conditions.push('EXISTS (SELECT 1 FROM external_identities ei WHERE ei.user_id = u.id AND ei.provider = "telegram")');
+            } else {
+                conditions.push('NOT EXISTS (SELECT 1 FROM external_identities ei WHERE ei.user_id = u.id AND ei.provider = "telegram")');
+            }
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        // Conteo total para paginación (Debe usar los mismos filtros)
+        const countSql = `SELECT COUNT(*) as total FROM users u ${whereClause}`;
         const [[{ total }]] = await pool.query(countSql, params);
 
-        // Consulta paginada con estado de Telegram (Regla 12)
+        // Consulta paginada con estado de Telegram
         const sql = `
             SELECT u.id, u.name, u.email, u.avatar_url, u.role, u.is_active, u.created_at,
             (SELECT COUNT(*) FROM external_identities ei WHERE ei.user_id = u.id AND ei.provider = 'telegram') > 0 as telegram_linked

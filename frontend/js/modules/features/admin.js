@@ -5,19 +5,28 @@ import { API_URL } from '../core/api.js';
 import { apiFetch } from '../core/api.js';
 import { showToast, showConfirm, escapeHTML, showJsonDetails } from '../core/ui.js';
 import {
-    currentUsersPage, currentUsersLimit, currentUsersSearch, setUsersPage, setUsersLimit, setUsersSearch,
+    currentUsersPage, currentUsersLimit, currentUsersSearch, currentUsersFilters, 
+    setUsersPage, setUsersLimit, setUsersSearch, setUsersFilters,
     currentLogsPage, currentLogsLimit, currentLogsFilters, availableLogActions,
     setLogsPage, setLogsLimit, setLogsFilters, setAvailableLogActions
 } from '../core/state.js';
 
 // ============ GESTIÓN DE USUARIOS ============
 
-export async function loadUsers(page = 1, search = null) {
+export async function loadUsers(page = 1, applyFilters = false) {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     if (currentUser.role !== 'admin') return;
 
     setUsersPage(page);
-    if (search !== null) setUsersSearch(search);
+
+    if (applyFilters) {
+        setUsersSearch(document.getElementById('users-search-input')?.value || '');
+        setUsersFilters({
+            status: document.getElementById('user-filter-status')?.value || '',
+            role: document.getElementById('user-filter-role')?.value || '',
+            telegram: document.getElementById('user-filter-telegram')?.value || ''
+        });
+    }
 
     const main = document.getElementById('main-content');
     if (!document.getElementById('users-search-input')) {
@@ -26,7 +35,10 @@ export async function loadUsers(page = 1, search = null) {
 
     try {
         const queryParams = new URLSearchParams({
-            page: currentUsersPage, limit: currentUsersLimit, search: currentUsersSearch
+            page: currentUsersPage, 
+            limit: currentUsersLimit, 
+            search: currentUsersSearch,
+            ...currentUsersFilters
         }).toString();
         const res = await apiFetch(`${API_URL}/users?${queryParams}`);
         if (!res) return;
@@ -100,24 +112,43 @@ function renderUsers(data, container) {
         .map(p => `<option value="${p}" ${p === page ? 'selected' : ''}>Pág ${p}</option>`).join('');
 
     container.innerHTML = `
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+        <div class="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-6 gap-4">
             <div>
                 <h2 class="text-2xl font-extrabold tracking-tight">Gestión de Usuarios</h2>
                 <p class="text-[11px] text-slate-500 mt-0.5 opacity-80 uppercase tracking-wider font-medium">Control de Acceso y Roles</p>
             </div>
-            <div class="flex gap-2 w-full md:w-auto items-center">
-                <input type="text" id="users-search-input" value="${currentUsersSearch}"
-                    onkeyup="if(event.key === 'Enter') loadUsers(1, this.value)"
-                    placeholder="Buscar nombre o email..."
-                    class="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary placeholder:text-slate-500 h-9 flex-1 md:w-64">
-                <button onclick="loadUsers(1, document.getElementById('users-search-input').value)"
-                    class="h-9 w-9 flex items-center justify-center bg-primary text-white rounded-lg transition-all active:scale-95 shadow-lg shadow-primary/20">
-                    <span class="material-symbols-outlined text-[20px]">search</span>
-                </button>
+            <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
+                <div class="flex gap-2 flex-1 md:flex-none">
+                    <input type="text" id="users-search-input" value="${currentUsersSearch}"
+                        onkeyup="if(event.key === 'Enter') loadUsers(1, true)"
+                        placeholder="Buscar nombre o email..."
+                        class="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary placeholder:text-slate-500 h-9 flex-1 md:w-48">
+                </div>
+                
+                <select id="user-filter-status" onchange="loadUsers(1, true)"
+                    class="bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-primary h-9 cursor-pointer min-w-[100px]">
+                    <option value="">Todos los estados</option>
+                    <option value="1" ${currentUsersFilters.status === '1' ? 'selected' : ''}>Activos</option>
+                    <option value="0" ${currentUsersFilters.status === '0' ? 'selected' : ''}>Pendientes</option>
+                </select>
+
+                <select id="user-filter-role" onchange="loadUsers(1, true)"
+                    class="bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-primary h-9 cursor-pointer min-w-[100px]">
+                    <option value="">Todos los roles</option>
+                    <option value="admin" ${currentUsersFilters.role === 'admin' ? 'selected' : ''}>Administradores</option>
+                    <option value="usuario" ${currentUsersFilters.role === 'usuario' ? 'selected' : ''}>Usuarios</option>
+                </select>
+
+                <select id="user-filter-telegram" onchange="loadUsers(1, true)"
+                    class="bg-slate-800 border border-slate-700 text-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-primary h-9 cursor-pointer min-w-[100px]">
+                    <option value="">Telegram (Todos)</option>
+                    <option value="1" ${currentUsersFilters.telegram === '1' ? 'selected' : ''}>Vinculados</option>
+                    <option value="0" ${currentUsersFilters.telegram === '0' ? 'selected' : ''}>Sin Vincular</option>
+                </select>
             </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            ${users.length ? usersHtml : '<div class="col-span-full p-12 text-center glass-card rounded-2xl border border-dashed border-slate-700 text-slate-500 italic">No se encontraron usuarios.</div>'}
+            ${users.length ? usersHtml : '<div class="col-span-full p-12 text-center glass-card rounded-2xl border border-dashed border-slate-700 text-slate-500 italic">No se encontraron usuarios con los filtros aplicados.</div>'}
         </div>
         <div class="flex items-center justify-between px-2 mt-8 text-sm text-slate-400 font-bold border-t border-slate-800 pt-6">
             <div class="flex items-center gap-3">

@@ -18,6 +18,10 @@
 5. **Race Condition Socket:** El socket intentaba autenticarse antes de que el JWT estuviera listo. Se movió la lógica de conexión al flujo `async` de inicio de la app.
 6. **Persistencia Telegram (Regla 10):** El estado `telegram_linked` no se guardaba en `localStorage` tras el login, causando que en móviles apareciera como desvinculado. Se corrigió en `auth.js`.
 
+### 🛠️ Identidad y Legado del Nombre
+- **Origen de "Lidia":** El nombre representa un homenaje a **Lidia Esther**, la madre del programador principal.
+- **Impacto Arquitectónico:** Esta definición rige el "Tone of Voice" (ToV) del sistema. Lidia debe actuar con la calidez de una madre y la eficiencia necesaria para resolver problemas, priorizando siempre la resolución sobre la respuesta técnica fría.
+
 ### Decisiones de Arquitectura (Regla 12)
 - **Blindaje de Controladores:** Se agregó validación explícita de `req.user` en todos los endpoints de notificaciones para evitar errores 500 silenciosos.
 - **Single Responsibility:** Se separó la lógica de Telegram de la lógica de base de datos para garantizar que un fallo en un canal no afecte al otro.
@@ -115,4 +119,19 @@ Para evitar la duplicidad de lógica entre el chat web y el bot de Telegram, se 
     - La ambigüedad del año (2 o 4 dígitos) fue mitigada forzando 4 dígitos en el prompt del bot.
     - **Deuda:** Si en el futuro se internacionaliza la app (ej. USA usa MM-DD-YYYY), este parser fallará catastróficamente. Se recomienda usar una librería como `date-fns` o `luxon` si el alcance crece.
 
----
+## [2026-04-27] Filtros Avanzados y Paginación Sincronizada (Gestión de Usuarios)
+
+### Implementación de Filtros Dinámicos (Regla 7)
+Se implementaron filtros por **Estado**, **Rol** y **Vinculación de Telegram** en el panel de administración.
+
+- **Arquitectura Backend:** Se optó por una construcción dinámica de la cláusula `WHERE` en `userController.js`. 
+    - **Telegram Query:** El filtrado por Telegram utiliza `EXISTS` sobre la tabla `external_identities`. Esta técnica es superior a un `JOIN` para este caso de uso, ya que evita la duplicación de filas si un usuario tuviera múltiples identidades (aunque la lógica actual es 1:1).
+    - **Sincronización:** Se garantizó que la consulta de `COUNT(*)` use exactamente la misma `whereClause` que la consulta de datos, evitando inconsistencias en la UI de paginación.
+
+### UI/UX Premium (Regla 2)
+- Se rediseñó la cabecera de "Gestión de Usuarios" para integrar selectores de filtrado sin romper la estética **Emerald Nocturne**.
+- Se optimizó el layout para ser responsivo (usando `xl:flex-row` y `flex-wrap`), asegurando que las herramientas de administración sean utilizables en tablets y móviles.
+
+### Riesgos y Deuda Técnica (Regla 1)
+- **Rendimiento de Subqueries:** El uso de `EXISTS` en el `WHERE` puede ser costoso en tablas de millones de registros sin índices adecuados. Se recomienda un índice compuesto `(user_id, provider)` en `external_identities`.
+- **Estado Global:** La gestión del estado en `state.js` sigue creciendo de forma lineal. A largo plazo, se recomienda migrar a un patrón de "Store" con selectores para evitar la dispersión de variables `currentXFilters`.

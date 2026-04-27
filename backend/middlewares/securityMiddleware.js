@@ -2,6 +2,11 @@ const xss = require('xss');
 
 // Middleware para sanitizar (limpiar) de scripts maliciosos todas las entradas del usuario (body, query, params)
 const xssSanitizer = (req, res, next) => {
+    // Si es una carga de archivos, no sanitizamos aquí (lo maneja multer y el controlador luego si es necesario)
+    if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+        return next();
+    }
+
     if (req.body) {
         for (const key in req.body) {
             if (typeof req.body[key] === 'string') {

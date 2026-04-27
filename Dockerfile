@@ -15,6 +15,9 @@ RUN cd backend && npm cache clean --force && npm install --production
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 
+# Crear directorios para persistencia (Regla 4)
+RUN mkdir -p backend/uploads/spaces logs storage && chmod -R 777 backend/uploads logs storage
+
 # Exponer el puerto que usa Express
 EXPOSE 3000
 

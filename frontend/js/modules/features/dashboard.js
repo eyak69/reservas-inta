@@ -173,7 +173,7 @@ export async function requestUnlinkTelegram() {
 }
 
 // --- Modal de Reserva (pertenece al Dashboard aunque también es usado desde otras vistas) ---
-export async function openModal(preselectedSpaceId = null) {
+export async function openModal(preselectedSpaceId = null, start = null, end = null) {
     let mySpaces = getMySpaces();
     if (mySpaces.length === 0) {
         try {
@@ -182,9 +182,7 @@ export async function openModal(preselectedSpaceId = null) {
                 mySpaces = await res.json();
                 setMySpaces(mySpaces);
             }
-        } catch (e) {
-
-        }
+        } catch (e) { }
     }
 
     const modal = document.getElementById('modal-overlay');
@@ -193,10 +191,25 @@ export async function openModal(preselectedSpaceId = null) {
     select.innerHTML = mySpaces.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     if (preselectedSpaceId) select.value = preselectedSpaceId;
 
-    const d = new Date();
-    document.getElementById('form-date').value = d.toISOString().split('T')[0];
-    document.getElementById('form-start-time').value = '09:00';
-    document.getElementById('form-end-time').value = '10:00';
+    const d = start ? new Date(start) : new Date();
+    const dEnd = end ? new Date(end) : null;
+
+    // Usar componentes locales para evitar desfase de zona horaria (Regla 8)
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    document.getElementById('form-date').value = `${year}-${month}-${day}`;
+    
+    // Formatear HH:mm
+    const formatTime = (date) => {
+        const h = String(date.getHours()).padStart(2, '0');
+        const m = String(date.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+    };
+
+    document.getElementById('form-start-time').value = start ? formatTime(d) : '09:00';
+    document.getElementById('form-end-time').value = dEnd ? formatTime(dEnd) : (start ? formatTime(new Date(d.getTime() + 60 * 60 * 1000)) : '10:00');
+    
     document.getElementById('form-comments').value = '';
     const allDayCheckbox = document.getElementById('form-all-day');
     if (allDayCheckbox) {
@@ -230,26 +243,118 @@ export function toggleAllDay() {
 }
 
 // --- Gestión de Espacios (Admin) ---
+// --- Gestión de Espacios (Admin) ---
 export function openSpaceModal(id = null) {
     setEditingSpaceId(id);
     const mySpaces = getMySpaces();
+    
+    // Resetear UI de imagen
+    const preview = document.getElementById('space-image-preview');
+    const emptyState = document.getElementById('image-empty-state');
+    const changeOverlay = document.getElementById('image-change-overlay');
+    const fileInput = document.getElementById('space-image-file');
+    const urlInput = document.getElementById('space-image-url');
+    const urlContainer = document.getElementById('url-input-container');
+
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    if (emptyState) emptyState.classList.remove('hidden');
+    if (changeOverlay) changeOverlay.classList.add('hidden');
+    if (fileInput) fileInput.value = '';
+    if (urlInput) urlInput.value = '';
+    if (urlContainer) urlContainer.classList.add('translate-y-full');
+
     if (id) {
         const space = mySpaces.find(s => s.id === id);
         if (!space) return;
-        document.getElementById('space-name').value = space.name;
-        document.getElementById('space-desc').value = space.description;
+        document.getElementById('space-name').value = space.name || '';
+        document.getElementById('space-desc').value = space.description || '';
         document.getElementById('space-image-url').value = space.image_url || '';
         document.querySelector('#space-modal h2').innerText = 'Editar Espacio';
+        
+        // Si hay imagen (ya sea URL externa o interna de uploads), mostrarla
+        if (space.image_url && space.image_url.trim() !== '') {
+            if (preview) {
+                preview.src = space.image_url;
+                preview.classList.remove('hidden');
+            }
+            if (emptyState) emptyState.classList.add('hidden');
+            if (changeOverlay) changeOverlay.classList.remove('hidden');
+        } else {
+            if (preview) preview.classList.add('hidden');
+            if (emptyState) emptyState.classList.remove('hidden');
+            if (changeOverlay) changeOverlay.classList.add('hidden');
+        }
     } else {
         document.getElementById('space-name').value = '';
         document.getElementById('space-desc').value = '';
         document.getElementById('space-image-url').value = '';
         document.querySelector('#space-modal h2').innerText = 'Nuevo Espacio';
+        if (preview) preview.classList.add('hidden');
+        if (emptyState) emptyState.classList.remove('hidden');
+        if (changeOverlay) changeOverlay.classList.add('hidden');
     }
+
     const modal = document.getElementById('modal-space-overlay');
     const modalContent = document.getElementById('space-modal');
     modal.classList.add('modal-active');
+    modal.classList.remove('hidden');
     setTimeout(() => modalContent.classList.add('modal-slide-up'), 10);
+}
+
+export function previewSpaceImage(input) {
+    const preview = document.getElementById('space-image-preview');
+    const emptyState = document.getElementById('image-empty-state');
+    const changeOverlay = document.getElementById('image-change-overlay');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            changeOverlay.classList.remove('hidden');
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+export function clearSpaceImage() {
+    const preview = document.getElementById('space-image-preview');
+    const emptyState = document.getElementById('image-empty-state');
+    const changeOverlay = document.getElementById('image-change-overlay');
+    const fileInput = document.getElementById('space-image-file');
+    const urlInput = document.getElementById('space-image-url');
+
+    if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    if (emptyState) emptyState.classList.remove('hidden');
+    if (changeOverlay) changeOverlay.classList.add('hidden');
+    if (fileInput) fileInput.value = '';
+    if (urlInput) urlInput.value = '';
+}
+
+export function toggleImageUrlInput() {
+    const container = document.getElementById('url-input-container');
+    const input = document.getElementById('space-image-url');
+    const isHidden = container.classList.contains('translate-y-full');
+    
+    if (isHidden) {
+        container.classList.remove('translate-y-full');
+        input.focus();
+        input.select();
+    } else {
+        container.classList.add('translate-y-full');
+        // Al cerrar, si hay algo en el input, previsualizarlo
+        const url = input.value;
+        if (url) {
+            const preview = document.getElementById('space-image-preview');
+            const emptyState = document.getElementById('image-empty-state');
+            const changeOverlay = document.getElementById('image-change-overlay');
+            preview.src = url;
+            preview.classList.remove('hidden');
+            if (emptyState) emptyState.classList.add('hidden');
+            if (changeOverlay) changeOverlay.classList.remove('hidden');
+        }
+    }
 }
 
 export function editSpace(id) { openSpaceModal(id); }
@@ -269,32 +374,53 @@ export function closeSpaceModal() {
     const modal = document.getElementById('modal-space-overlay');
     const modalContent = document.getElementById('space-modal');
     modalContent.classList.remove('modal-slide-up');
-    setTimeout(() => modal.classList.remove('modal-active'), 300);
+    setTimeout(() => {
+        modal.classList.remove('modal-active');
+        modal.classList.add('hidden');
+    }, 300);
 }
 
 export async function saveNewSpace() {
     const name = document.getElementById('space-name').value;
     const description = document.getElementById('space-desc').value;
     const image_url = document.getElementById('space-image-url').value;
-    if (!name) return showToast('El nombre es requerido.');
+    const fileInput = document.getElementById('space-image-file');
+    const id = getEditingSpaceId();
 
-    const editingSpaceId = getEditingSpaceId();
+    if (!name) return showToast('El nombre es obligatorio');
+
+    // Usar FormData para soportar carga de archivos
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('description', description);
+    formData.append('image_url', image_url);
+    if (fileInput.files[0]) {
+        formData.append('image', fileInput.files[0]);
+    }
+    formData.append('is_active', true);
+
     try {
-        const url = editingSpaceId ? `${API_URL}/spaces/${editingSpaceId}` : `${API_URL}/spaces`;
-        const method = editingSpaceId ? 'PUT' : 'POST';
-        const res = await apiFetch(url, {
+        const url = id ? `${API_URL}/spaces/${id}` : `${API_URL}/spaces`;
+        const method = id ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description, image_url, is_active: true })
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: formData
         });
-        if (!res) return;
-        const data = await res.json();
+
         if (res.ok) {
-            showToast(editingSpaceId ? 'Espacio actualizado.' : 'Espacio creado con éxito.', 'success');
+            showToast(id ? 'Espacio actualizado.' : 'Espacio creado con éxito.', 'success');
             closeSpaceModal();
             loadDashboard();
-        } else showToast(data.message || 'Error al guardar.');
-    } catch (e) { showToast('Error de red.'); }
+        } else {
+            const data = await res.json().catch(() => ({ message: 'Error desconocido del servidor' }));
+            showToast(data.message || 'Error al guardar.');
+        }
+    } catch (e) {
+        console.error('[Dashboard] Error al guardar espacio:', e);
+        showToast('Error de conexión o de procesamiento.');
+    }
 }
 
 // --- Envío de Reserva ---

@@ -131,26 +131,7 @@ function initTelegram() {
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
 
-function formatHumanDate(isoString) {
-    const date = new Date(isoString);
-    return new Intl.DateTimeFormat('es-AR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'America/Argentina/Buenos_Aires'
-    }).format(date);
-}
 
-function formatHumanTime(isoString) {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString('es-AR', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: false,
-        timeZone: 'America/Argentina/Buenos_Aires'
-    });
-}
 
 async function sendNotification(userId, message) {
     if (!token) return;
@@ -190,4 +171,4 @@ async function notifyAdmins(message) {
     }
 }
 
-module.exports = { initTelegram, sendNotification, notifyAdmins, formatHumanDate, formatHumanTime };
+module.exports = { initTelegram, sendNotification, notifyAdmins };

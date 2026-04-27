@@ -33,17 +33,27 @@ export function startIdleTimer() {
 }
 
 // --- Auth View Toggle ---
-export function toggleAuthView(view) {
+export function toggleAuthView(view, extraData = null) {
     const loginForm = document.getElementById('login-form-container');
     const registerForm = document.getElementById('register-form-container');
-    document.querySelectorAll('#auth-view input').forEach(input => input.value = '');
+    const otpForm = document.getElementById('otp-view-container');
+    
+    // Ocultar todos
+    loginForm?.classList.add('hidden');
+    registerForm?.classList.add('hidden');
+    otpForm?.classList.add('hidden');
+
     if (view === 'register') {
-        loginForm.classList.add('hidden');
-        registerForm.classList.remove('hidden');
+        registerForm?.classList.remove('hidden');
         loadCaptcha();
+    } else if (view === 'otp') {
+        otpForm?.classList.remove('hidden');
+        if (extraData?.email) {
+            document.getElementById('otp-email-display').innerText = extraData.email;
+            document.getElementById('otp-code').dataset.email = extraData.email;
+        }
     } else {
-        registerForm.classList.add('hidden');
-        loginForm.classList.remove('hidden');
+        loginForm?.classList.remove('hidden');
     }
 }
 
@@ -129,11 +139,38 @@ export async function submitRegister() {
         });
         const data = await res.json();
         if (res.ok) {
-            showAlert('¡Registro Exitoso!', data.message || 'Tu cuenta fue creada. Un admin debe habilitarla.', 'success')
-                .then(() => toggleAuthView('login'));
+            if (data.skipOTP) {
+                showPendingScreen(data.message);
+                showToast('¡Registro completado!', 'success');
+            } else {
+                // Flujo normal con verificación de correo
+                toggleAuthView('otp', { email: email });
+                showToast('¡Registro iniciado! Revisa tu correo.', 'success');
+            }
         } else {
             showToast(data.message || 'Error al registrarte');
             if (data.message && data.message.includes('seguridad')) loadCaptcha();
+        }
+    } catch (e) { showToast('Error de red'); }
+}
+
+// --- Verificación OTP ---
+export async function submitOTP() {
+    const email = document.getElementById('otp-code').dataset.email;
+    const code = document.getElementById('otp-code').value;
+    if (!code || code.length < 6) return showToast('Ingresa el código de 6 dígitos');
+
+    try {
+        const res = await fetch(`${API_URL}/auth/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showPendingScreen(data.message);
+        } else {
+            showToast(data.message || 'Código inválido');
         }
     } catch (e) { showToast('Error de red'); }
 }

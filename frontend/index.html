@@ -163,6 +163,37 @@
                     class="text-xs text-slate-400 mt-2 hover:text-white transition-colors">Volver al inicio de
                     sesión</button>
             </div>
+
+            <!-- OTP Verification View (Hidden initially) -->
+            <div id="otp-view-container" class="hidden flex flex-col gap-6 text-center">
+                <div class="flex flex-col items-center gap-4">
+                    <span class="material-symbols-outlined text-[64px] text-primary animate-pulse">mail</span>
+                    <div>
+                        <h2 class="text-xl font-extrabold tracking-tight">Verifica tu Correo</h2>
+                        <p class="text-xs text-slate-400 mt-1">Hemos enviado un código de 6 dígitos a <br><span id="otp-email-display" class="text-primary font-bold"></span></p>
+                    </div>
+                </div>
+
+                <div class="space-y-4 font-form">
+                    <div class="relative">
+                        <input type="text" id="otp-code" placeholder="000000"
+                            class="w-full bg-slate-900/80 border-2 border-slate-700/50 rounded-2xl py-4 px-4 text-white text-3xl font-black tracking-[0.5em] text-center focus:border-primary outline-none neon-glow transition-all"
+                            maxlength="6" />
+                    </div>
+                    
+                    <button id="btn-verify-otp"
+                        class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined">verified</span>
+                        <span>Verificar Código</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest">¿No recibiste nada?</p>
+                    <button onclick="toggleAuthView('register')" class="text-xs text-primary hover:underline font-bold">Intentar con otro correo</button>
+                    <button onclick="toggleAuthView('login')" class="text-xs text-slate-400 hover:text-white transition-colors">Volver al inicio</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -335,14 +366,48 @@
                     </button>
                 </header>
                 <div class="p-6 pb-24 space-y-6 overflow-y-auto no-scrollbar font-form relative">
-                    <div
-                        class="w-full aspect-video rounded-xl overflow-hidden relative group bg-primary/10 dashed-neon">
-                        <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
-                            <span class="material-symbols-outlined text-4xl text-primary/60 mb-2">cloud_upload</span>
-                            <p class="text-primary font-semibold text-sm">URL de Imagen</p>
-                            <input type="text" id="space-image-url"
-                                class="mt-2 w-[80%] bg-slate-900/50 border border-slate-700/50 rounded-lg py-2 px-3 text-white text-xs text-center focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder:text-slate-500"
-                                placeholder="https://ejemplo.com/foto.jpg" />
+                    <div class="w-full aspect-video rounded-xl overflow-hidden relative group bg-slate-800 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center transition-all hover:border-primary/50">
+                        <!-- Preview Image -->
+                        <img id="space-image-preview" src="" class="absolute inset-0 w-full h-full object-cover hidden" />
+                        
+                        <!-- Overlay on Hover when image exists -->
+                        <div id="image-change-overlay" class="absolute inset-0 bg-background-dark/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-30 hidden">
+                             <button onclick="document.getElementById('space-image-file').click()" type="button" class="size-12 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                                <span class="material-symbols-outlined">upload</span>
+                             </button>
+                             <button onclick="toggleImageUrlInput()" type="button" class="size-12 rounded-full bg-slate-700 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                                <span class="material-symbols-outlined">link</span>
+                             </button>
+                             <button onclick="clearSpaceImage()" type="button" class="size-12 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                                <span class="material-symbols-outlined">delete</span>
+                             </button>
+                        </div>
+
+                        <!-- Empty State / Controls -->
+                        <div id="image-empty-state" class="flex flex-col items-center justify-center p-6 text-center space-y-3 z-10">
+                            <span class="material-symbols-outlined text-4xl text-slate-500">image_search</span>
+                            <div>
+                                <p class="text-sm font-bold text-slate-300">Foto del Espacio</p>
+                                <p class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Archivo local o URL</p>
+                            </div>
+                            <div class="flex gap-2 pt-2">
+                                <button onclick="document.getElementById('space-image-file').click()" type="button" class="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-lg border border-primary/30 transition-all flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-sm">upload</span> Subir Foto
+                                </button>
+                                <button onclick="toggleImageUrlInput()" type="button" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg border border-slate-600 transition-all flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-sm">link</span> Usar URL
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hidden Inputs -->
+                        <input type="file" id="space-image-file" class="hidden" accept="image/*" onchange="previewSpaceImage(this)" />
+                        <div id="url-input-container" class="absolute bottom-0 left-0 right-0 p-4 bg-slate-900/90 backdrop-blur-sm border-t border-slate-700 transform translate-y-full transition-transform z-40">
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="space-image-url" placeholder="https://ejemplo.com/foto.jpg"
+                                    class="flex-1 bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-white text-xs outline-none focus:border-primary" />
+                                <button onclick="toggleImageUrlInput()" class="p-2 text-slate-400 hover:text-white"><span class="material-symbols-outlined">check</span></button>
+                            </div>
                         </div>
                     </div>
                     <div class="space-y-4">

@@ -24,30 +24,59 @@ const getSpaceById = async (req, res) => {
 
 // Crear espacio (Admin)
 const createSpace = async (req, res) => {
-    const { name, description, image_url } = req.body;
+    const { name, description } = req.body;
+    let { image_url } = req.body;
+
+    // Si se subió un archivo, este tiene prioridad
+    if (req.file) {
+        image_url = `/uploads/spaces/${req.file.filename}`;
+    }
+
+    console.log('[SpaceController] Creando espacio:', { name, image_url, hasFile: !!req.file });
+
     try {
         const [result] = await pool.query(
-            'INSERT INTO spaces (name, description, image_url) VALUES (?, ?, ?)',
+            'INSERT INTO spaces (name, description, image_url, is_active) VALUES (?, ?, ?, true)',
             [name, description, image_url]
         );
-        logActivity(req.user.id, 'CREATE_SPACE', 'Espacio', result.insertId, result.insertId, { name, description }, req.ip);
+        logActivity(req.user.id, 'CREATE_SPACE', 'Espacio', result.insertId, result.insertId, { name, image_url }, req.ip);
         res.status(201).json({ message: 'Espacio creado', id: result.insertId });
     } catch (error) {
+        console.error('[SpaceController] Error al crear espacio:', error);
         res.status(500).json({ message: 'Error al crear', error: error.message });
     }
 };
 
 // Actualizar espacio (Admin)
 const updateSpace = async (req, res) => {
-    const { name, description, image_url, is_active } = req.body;
+    const { name, description } = req.body;
+    let { image_url, is_active } = req.body;
+
+    console.log('[SpaceController] Actualizando espacio:', req.params.id, { name, image_url, is_active, hasFile: !!req.file });
+
+    // Si se subió un archivo, actualizamos la URL
+    if (req.file) {
+        image_url = `/uploads/spaces/${req.file.filename}`;
+    }
+
+    // Convertir is_active a boolean/number (viene como string de FormData)
+    const activeVal = is_active === 'true' || is_active === true || is_active === '1' ? 1 : 0;
+
     try {
+        // Primero obtener el estado actual para no borrar la imagen si no se envía una nueva
+        if (image_url === undefined) {
+            const [rows] = await pool.query('SELECT image_url FROM spaces WHERE id = ?', [req.params.id]);
+            if (rows.length > 0) image_url = rows[0].image_url;
+        }
+
         await pool.query(
             'UPDATE spaces SET name = ?, description = ?, image_url = ?, is_active = ? WHERE id = ?',
-            [name, description, image_url, is_active, req.params.id]
+            [name, description, image_url, activeVal, req.params.id]
         );
-        logActivity(req.user.id, 'UPDATE_SPACE', 'Espacio', req.params.id, req.params.id, { name, is_active }, req.ip);
+        logActivity(req.user.id, 'UPDATE_SPACE', 'Espacio', req.params.id, req.params.id, { name, image_url, is_active: activeVal }, req.ip);
         res.json({ message: 'Espacio actualizado' });
     } catch (error) {
+        console.error('[SpaceController] Error al actualizar espacio:', error);
         res.status(500).json({ message: 'Error al actualizar', error: error.message });
     }
 };

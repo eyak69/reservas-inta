@@ -66,7 +66,8 @@ const getAllReservations = async (req, res) => {
 const getAllPublicReservations = async (req, res) => {
     try {
         const sql = `
-            SELECT r.id, r.space_id, r.start_time, r.end_time, r.status, r.comments as description, s.name as space_name, u.name as user_name
+            SELECT r.id, r.space_id, r.user_id, r.start_time, r.end_time, r.status, r.comments as description, 
+                   s.name as space_name, u.name as user_name, u.email as user_email
             FROM reservations r
             JOIN spaces s ON r.space_id = s.id
             JOIN users u ON r.user_id = u.id

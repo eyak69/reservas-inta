@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 const logActivity = require('../utils/logger');
 const { sendNotificationEvent } = require('./notificationService');
-const { formatHumanDate, formatHumanTime } = require('./telegramService');
+const { formatHumanDate, formatHumanTime } = require('../utils/dateUtils');
 
 // ─── Declaraciones de tools para Gemini ───────────────────────────────────────
 // Todas las tools están declaradas siempre. El system prompt y el guard de rol

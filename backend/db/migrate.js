@@ -31,7 +31,9 @@ async function runMigrations() {
         // Evolución de la tabla users (Regla 14)
         for (const col of [
             'ADD COLUMN link_token        VARCHAR(20) UNIQUE NULL AFTER reset_token_expiry',
-            'ADD COLUMN link_token_expiry DATETIME NULL AFTER link_token'
+            'ADD COLUMN link_token_expiry DATETIME NULL AFTER link_token',
+            'ADD COLUMN is_verified       BOOLEAN DEFAULT FALSE AFTER link_token_expiry',
+            'ADD COLUMN verification_code VARCHAR(6) NULL AFTER is_verified'
         ]) {
             try { await conn.query(`ALTER TABLE users ${col}`); } catch (e) { /* ya existe */ }
         }

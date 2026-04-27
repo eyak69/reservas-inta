@@ -20,13 +20,16 @@ export function setReservationsPage(p) { currentReservationsPage = p; }
 export function setReservationsLimit(l) { currentReservationsLimit = l; }
 export function setReservationsFilters(f) { currentReservationsFilters = { ...currentReservationsFilters, ...f }; }
 
-// Estado de usuarios (paginación)
+// Estado de usuarios (paginación + filtros)
 export let currentUsersPage = 1;
 export let currentUsersLimit = 10;
 export let currentUsersSearch = '';
+export let currentUsersFilters = { status: '', role: '', telegram: '' };
+
 export function setUsersPage(p) { currentUsersPage = p; }
 export function setUsersLimit(l) { currentUsersLimit = l; }
 export function setUsersSearch(s) { currentUsersSearch = s; }
+export function setUsersFilters(f) { currentUsersFilters = { ...currentUsersFilters, ...f }; }
 
 // Estado de logs (paginación + filtros)
 export let currentLogsPage = 1;

@@ -3,6 +3,10 @@ const cors = require('cors');
 const path = require('path');
 process.env.TZ = 'America/Argentina/Buenos_Aires'; // Forzar Zona Horaria Argentina (Regla 8)
 require('dotenv').config();
+const { ensureDirectories } = require('./utils/dirInit');
+
+// Asegurar infraestructura de archivos antes de arrancar (Regla 14)
+ensureDirectories();
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -41,7 +45,8 @@ const authLimiter = rateLimit({
   message: { message: "Demasiados intentos desde esta IP. Por seguridad, intente de nuevo en 15 minutos." }
 });
 
-// Servir archivos estáticos del frontend
+// Servir archivos estáticos del frontend y de uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 const runMigrations = require('./db/migrate');
@@ -62,6 +67,16 @@ app.use('/api/notifications', notificationRoutes);
 // Para cualquier otra ruta GET no capturada por las API, devolvemos la SPA del frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend', 'index.html'));
+});
+
+// Manejador de errores global (Regla 11)
+app.use((err, req, res, next) => {
+  console.error('[GlobalError]', err);
+  const status = err.status || 500;
+  res.status(status).json({
+    message: err.message || 'Error interno del servidor',
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
 // Función para iniciar el servidor tras las migraciones

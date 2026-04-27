@@ -2,9 +2,9 @@
 // Este archivo orquesta todos los módulos e inicializa la aplicación.
 // Las funciones se exponen en window.* para compatibilidad con los onclick del HTML.
 
-import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, openPasswordManagement, loadCaptcha } from './features/auth.js';
+import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, submitOTP, openPasswordManagement, loadCaptcha } from './features/auth.js';
 import { togglePasswordVisibility } from './core/ui.js';
-import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, submitReservation, generateNewTelegramCode, requestUnlinkTelegram } from './features/dashboard.js';
+import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, previewSpaceImage, clearSpaceImage, toggleImageUrlInput, submitReservation, generateNewTelegramCode, requestUnlinkTelegram } from './features/dashboard.js';
 import { loadReservations, renderReservations, updateReservationStatus, cancelReservation, changeReservationsLimit } from './features/reservations.js';
 import { loadCalendar } from './features/calendar.js';
 import { loadUsers, changeUsersLimit, toggleUserStatus, changeUserRole, generateResetLink, copyResetLink, loadLogs, changeLogsLimit, adminUnlinkTelegram } from './features/admin.js';
@@ -37,6 +37,7 @@ window.navigate = navigate;
 window.toggleAuthView = toggleAuthView;
 window.submitLogin = submitLogin;
 window.submitRegister = submitRegister;
+window.submitOTP = submitOTP;
 window.openPasswordManagement = openPasswordManagement;
 window.togglePasswordVisibility = togglePasswordVisibility;
 
@@ -48,6 +49,9 @@ window.openSpaceModal = openSpaceModal;
 window.editSpace = editSpace;
 window.deleteSpace = deleteSpace;
 window.closeSpaceModal = closeSpaceModal;
+window.previewSpaceImage = previewSpaceImage;
+window.clearSpaceImage = clearSpaceImage;
+window.toggleImageUrlInput = toggleImageUrlInput;
 window.saveNewSpace = saveNewSpace;
 window.submitReservation = submitReservation;
 window.generateNewTelegramCode = generateNewTelegramCode;
@@ -82,6 +86,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Listeners de auth — evita race condition en producción con onclick en HTML
     document.getElementById('btn-login-submit')?.addEventListener('click', submitLogin);
     document.getElementById('btn-register-submit')?.addEventListener('click', submitRegister);
+    document.getElementById('btn-verify-otp')?.addEventListener('click', submitOTP);
     document.getElementById('btn-reload-captcha')?.addEventListener('click', loadCaptcha);
     document.getElementById('link-go-register')?.addEventListener('click', (e) => { e.preventDefault(); toggleAuthView('register'); });
     document.getElementById('link-go-login')?.addEventListener('click', () => toggleAuthView('login'));
