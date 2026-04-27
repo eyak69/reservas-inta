@@ -2,14 +2,14 @@
 // Este archivo orquesta todos los módulos e inicializa la aplicación.
 // Las funciones se exponen en window.* para compatibilidad con los onclick del HTML.
 
-import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, submitOTP, openPasswordManagement, loadCaptcha } from './features/auth.js';
-import { togglePasswordVisibility } from './core/ui.js';
-import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, previewSpaceImage, clearSpaceImage, toggleImageUrlInput, submitReservation, generateNewTelegramCode, requestUnlinkTelegram } from './features/dashboard.js';
-import { loadReservations, renderReservations, updateReservationStatus, cancelReservation, changeReservationsLimit } from './features/reservations.js';
-import { loadCalendar } from './features/calendar.js';
-import { loadUsers, changeUsersLimit, toggleUserStatus, changeUserRole, generateResetLink, copyResetLink, loadLogs, changeLogsLimit, adminUnlinkTelegram } from './features/admin.js';
-import { initChat, destroyChat, toggleChat, handleChatKey, sendChatMessage } from './features/chat.js';
-import { initNotifications } from './core/notifications.js';
+import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, submitOTP, openPasswordManagement, loadCaptcha } from './features/auth.js?v=16';
+import { togglePasswordVisibility } from './core/ui.js?v=16';
+import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, previewSpaceImage, clearSpaceImage, toggleImageUrlInput, submitReservation, generateNewTelegramCode, requestUnlinkTelegram } from './features/dashboard.js?v=16';
+import { loadReservations, renderReservations, updateReservationStatus, cancelReservation, changeReservationsLimit } from './features/reservations.js?v=16';
+import { loadCalendar } from './features/calendar.js?v=16';
+import { loadUsers, changeUsersLimit, toggleUserStatus, changeUserRole, generateResetLink, copyResetLink, loadLogs, changeLogsLimit, adminUnlinkTelegram } from './features/admin.js?v=16';
+import { initChat, destroyChat, toggleChat, handleChatKey, sendChatMessage } from './features/chat.js?v=16';
+import { initNotifications } from './core/notifications.js?v=16';
 
 // ======= ENRUTADOR SPA =======
 export function navigate(view) {
