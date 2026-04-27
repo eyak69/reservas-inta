@@ -46,8 +46,18 @@ const authLimiter = rateLimit({
 });
 
 // Servir archivos estáticos del frontend y de uploads
+// Servir archivos estáticos del frontend y de uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '../frontend'), {
+  setHeaders: (res, filePath) => {
+    // Evitar que el navegador guarde el index.html en caché (temporales)
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 const runMigrations = require('./db/migrate');
 const { discoverModels, benchmarkModels } = require('./services/modelDiscovery');
@@ -66,6 +76,9 @@ app.use('/api/notifications', notificationRoutes);
 
 // Para cualquier otra ruta GET no capturada por las API, devolvemos la SPA del frontend
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, '../frontend', 'index.html'));
 });
 
