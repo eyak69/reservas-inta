@@ -139,3 +139,8 @@ Se implementaron filtros por **Estado**, **Rol** y **VinculaciÃ³n de Telegram** 
 ### [2026-04-27] Políticas de Caché Cero en SPA (Single Page Applications)
 - **Error Detectado:** Se implementó una técnica reactiva de Cache-Busting (añadir ?v=16 al HTML) tras evidenciar que los navegadores almacenaban el archivo index.html viejo, causando fallos en producción. Fue un fallo arquitectónico no haberlo previsto proactivamente (Violación temporal de la Regla 7).
 - **Decisión Arquitectónica:** En aplicaciones SPA, el archivo raíz (index.html) **jamás debe ser cacheado**. Se configuró Express para inyectar Cache-Control: no-cache, no-store, must-revalidate, Pragma: no-cache y Expires: 0 a la ruta raíz. Esto garantiza que el navegador siempre descargue el HTML más fresco.
+
+### [2026-04-27] Persistencia Blindada en Coolify (Named Volumes)
+- **Error Detectado:** Las fotos de los espacios desaparecían físicamente del servidor en cada despliegue de producción (Error 404). Se violó temporalmente la Regla 4 (Persistencia).
+- **Causa:** En el archivo \docker-compose.yml\ se usaban rutas relativas de host (\./uploads:/app/backend/uploads\). Coolify clona el repositorio en una **nueva carpeta temporal** en cada build, dejando atrás la carpeta física vieja. El contenedor arrancaba siempre con un disco en blanco.
+- **Decisión Arquitectónica:** Se migró estrictamente a **Docker Named Volumes** (\eservas_uploads\, etc.). Esto desacopla el almacenamiento del código fuente. Docker ahora crea un disco virtual persistente e inmutable a los despliegues de Coolify, garantizando que los archivos sobrevivan reinicios y actualizaciones.

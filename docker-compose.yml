@@ -21,6 +21,14 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ./logs:/app/logs
-      - ./storage:/app/storage
-      - ./uploads:/app/backend/uploads
+      - reservas_logs:/app/logs
+      - reservas_storage:/app/storage
+      - reservas_uploads:/app/backend/uploads
+
+volumes:
+  reservas_logs:
+    name: reservas_inta_logs
+  reservas_storage:
+    name: reservas_inta_storage
+  reservas_uploads:
+    name: reservas_inta_uploads
