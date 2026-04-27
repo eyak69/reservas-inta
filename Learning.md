@@ -135,3 +135,7 @@ Se implementaron filtros por **Estado**, **Rol** y **VinculaciÃ³n de Telegram** 
 ### Riesgos y Deuda TÃ©cnica (Regla 1)
 - **Rendimiento de Subqueries:** El uso de `EXISTS` en el `WHERE` puede ser costoso en tablas de millones de registros sin Ã­ndices adecuados. Se recomienda un Ã­ndice compuesto `(user_id, provider)` en `external_identities`.
 - **Estado Global:** La gestiÃ³n del estado en `state.js` sigue creciendo de forma lineal. A largo plazo, se recomienda migrar a un patrÃ³n de "Store" con selectores para evitar la dispersiÃ³n de variables `currentXFilters`.
+
+### [2026-04-27] Políticas de Caché Cero en SPA (Single Page Applications)
+- **Error Detectado:** Se implementó una técnica reactiva de Cache-Busting (añadir ?v=16 al HTML) tras evidenciar que los navegadores almacenaban el archivo index.html viejo, causando fallos en producción. Fue un fallo arquitectónico no haberlo previsto proactivamente (Violación temporal de la Regla 7).
+- **Decisión Arquitectónica:** En aplicaciones SPA, el archivo raíz (index.html) **jamás debe ser cacheado**. Se configuró Express para inyectar Cache-Control: no-cache, no-store, must-revalidate, Pragma: no-cache y Expires: 0 a la ruta raíz. Esto garantiza que el navegador siempre descargue el HTML más fresco.
