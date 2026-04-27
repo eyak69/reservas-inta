@@ -1,5 +1,7 @@
 const pool = require('../config/db');
 const logActivity = require('../utils/logger');
+const { sendNotificationEvent } = require('./notificationService');
+const { formatHumanDate, formatHumanTime } = require('./telegramService');
 
 // ─── Declaraciones de tools para Gemini ───────────────────────────────────────
 // Todas las tools están declaradas siempre. El system prompt y el guard de rol
@@ -82,7 +84,7 @@ const toolDeclarations = [
     },
     {
         name: 'aprobar_rechazar_reserva',
-        description: 'SOLO ADMIN. Cambia el estado de una reserva a "aprobada" o "rechazada".',
+        description: 'SOLO ADMIN. Aprueba o rechaza una reserva usando su ID numérico. Extraé el ID de la lista de reservas obtenida previamente.',
         parameters: {
             type: 'OBJECT',
             properties: {
@@ -143,6 +145,15 @@ const toolDeclarations = [
             },
             required: []
         }
+    },
+    {
+        name: "generate_link_token",
+        description: "Genera un código de 6 caracteres para vincular la cuenta de Telegram del usuario actual. Usalo cuando el usuario pregunte cómo conectar su Telegram o pida un código de vinculación.",
+        parameters: {
+            type: "object",
+            properties: {},
+            required: []
+        }
     }
 ];
 
@@ -166,7 +177,7 @@ async function mis_reservas({ fecha_desde, fecha_hasta, estado }, userId) {
         if (fh)     { whereChunks.push('DATE(r.start_time) <= ?'); params.push(fh); }
         if (estado) { whereChunks.push('r.status = ?');            params.push(estado); }
         const [rows] = await pool.query(`
-            SELECT r.id, s.name AS espacio, r.start_time AS inicio, r.end_time AS fin,
+            SELECT r.id AS reserva_id, s.name AS espacio, r.start_time AS inicio, r.end_time AS fin,
                    r.status AS estado, r.comments AS comentarios
             FROM reservations r
             JOIN spaces s ON r.space_id = s.id
@@ -257,6 +268,19 @@ async function crear_reserva({ space_id, fecha, hora_inicio, hora_fin, comentari
     );
     logActivity(userId, 'CREATE_RESERVATION', 'Reserva', result.insertId, space_id, { start_time, end_time, via: 'chat' }, userIp);
 
+    // Notificar a los admins (Regla 12)
+    const [[user]] = await pool.query('SELECT name FROM users WHERE id = ?', [userId]);
+    const motivoStr = comentarios ? `\n📝 Motivo: ${comentarios}` : '';
+    const fechaHumana = formatHumanDate(start_time);
+    const rangoHorario = `${formatHumanTime(start_time)} a ${formatHumanTime(end_time)}`;
+    
+    await sendNotificationEvent({
+        title: 'Nueva Reserva Pendiente',
+        message: `👤 Usuario: ${user.name}\n📍 Espacio: ${espacios[0].nombre}\n📅 Fecha: ${fechaHumana}\n⏰ Horario: ${rangoHorario} hs${motivoStr}`,
+        toAdmins: true,
+        type: 'info'
+    });
+
     return {
         resultado: `Reserva #${result.insertId} creada para "${espacios[0].nombre}" el ${fecha} de ${hora_inicio} a ${hora_fin}. Queda pendiente de aprobación.`,
         reserva_id: result.insertId
@@ -281,6 +305,14 @@ async function cancelar_reserva({ reserva_id }, userId, userRole) {
     await pool.query('UPDATE reservations SET status = "cancelada" WHERE id = ?', [reserva_id]);
     logActivity(userId, 'CANCEL_RESERVATION', 'Reserva', reserva_id, rows[0].space_id, { via: 'chat' }, null);
 
+    // Notificar al dueño de la reserva
+    await sendNotificationEvent({
+        userId: rows[0].user_id,
+        title: 'Reserva Cancelada',
+        message: `🚫 Tu reserva #${reserva_id} ha sido CANCELADA.`,
+        type: 'warning'
+    });
+
     return { resultado: 'Reserva cancelada exitosamente.' };
 }
 
@@ -300,7 +332,7 @@ async function todas_las_reservas({ fecha, estado, busqueda }) {
 
     const where = whereChunks.length ? `WHERE ${whereChunks.join(' AND ')}` : '';
     const [rows] = await pool.query(`
-        SELECT r.id, u.name AS usuario, u.email, s.name AS espacio,
+        SELECT r.id AS reserva_id, u.name AS usuario, u.email, s.name AS espacio,
                r.start_time AS inicio, r.end_time AS fin,
                r.status AS estado, r.comments AS comentarios
         FROM reservations r
@@ -319,13 +351,22 @@ async function aprobar_rechazar_reserva({ reserva_id, estado }, adminId, userIp)
     if (!['aprobada', 'rechazada'].includes(estado))
         return { error: 'El estado debe ser "aprobada" o "rechazada".' };
 
-    const [rows] = await pool.query('SELECT space_id, status FROM reservations WHERE id = ?', [reserva_id]);
+    const [rows] = await pool.query('SELECT space_id, status, user_id FROM reservations WHERE id = ?', [reserva_id]);
     if (rows.length === 0) return { error: 'No encontré una reserva con ese ID.' };
     if (rows[0].status === 'cancelada')
         return { error: 'No se puede modificar una reserva cancelada.' };
 
     await pool.query('UPDATE reservations SET status = ? WHERE id = ?', [estado, reserva_id]);
     logActivity(adminId, 'UPDATE_RESERVATION_STATUS', 'Reserva', reserva_id, rows[0].space_id, { estado, via: 'chat' }, userIp);
+
+    // Notificar al usuario sobre el cambio de estado
+    const emoji = estado === 'aprobada' ? '✅' : '❌';
+    await sendNotificationEvent({
+        userId: rows[0].user_id,
+        title: `Reserva ${estado.toUpperCase()}`,
+        message: `${emoji} Tu reserva #${reserva_id} ha sido ${estado.toUpperCase()}.`,
+        type: estado === 'aprobada' ? 'success' : 'error'
+    });
 
     return { resultado: `Reserva #${reserva_id} marcada como "${estado}".` };
 }
@@ -445,11 +486,29 @@ async function ver_logs({ fecha_desde, fecha_hasta, usuario, accion }) {
 // ─── Dispatcher principal ──────────────────────────────────────────────────────
 
 async function executeTool(toolName, toolArgs, userId, userRole, userIp) {
+    // Normalización de fechas (Regla 11: Resiliencia)
+    const normalizeDate = (str) => {
+        if (!str || typeof str !== 'string') return str;
+        // Detectar DD-MM-YYYY o DD/MM/YYYY
+        const latinMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+        if (latinMatch) {
+            const [, day, month, year] = latinMatch;
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        return str;
+    };
+
     // Normalizar args para modelos que mandan null (como Llama-3) o tipos incorrectos
     const sanitizedArgs = {};
     for (const [key, value] of Object.entries(toolArgs || {})) {
         if (value === null) continue;
         
+        // Normalizar fechas
+        if (['fecha', 'fecha_desde', 'fecha_hasta'].includes(key)) {
+            sanitizedArgs[key] = normalizeDate(value);
+            continue;
+        }
+
         // Forzar numéricos donde sabemos que deben serlo (Regla 11: Resiliencia)
         if (['space_id', 'reserva_id', 'user_id', 'usuario_id'].includes(key)) {
             const num = Number(value);
@@ -458,6 +517,8 @@ async function executeTool(toolName, toolArgs, userId, userRole, userIp) {
             sanitizedArgs[key] = value;
         }
     }
+    
+    console.log(`[ChatService] 🛠 Tool: ${toolName} | Args:`, JSON.stringify(sanitizedArgs));
 
     // Guard de permisos: si la tool es de admin y el usuario no lo es, rechazar
     if (TOOLS_ADMIN.has(toolName) && userRole !== 'admin') {
@@ -476,6 +537,17 @@ async function executeTool(toolName, toolArgs, userId, userRole, userIp) {
         case 'listar_usuarios':         return await listar_usuarios(sanitizedArgs);
         case 'gestionar_usuario':       return await gestionar_usuario(sanitizedArgs, userId, userIp);
         case 'ver_logs':                return await ver_logs(sanitizedArgs);
+        case 'generate_link_token': {
+            const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+            await pool.query(
+                'UPDATE users SET link_token = ?, link_token_expiry = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id = ?',
+                [token, userId]
+            );
+            return { 
+                message: `Tu código de vinculación es: ${token}`, 
+                instructions: "Copiá este código y mandáselo al bot de Telegram escribiendo: /vincular " + token 
+            };
+        }
         default:                        return { error: `Tool desconocida: ${toolName}` };
     }
 }

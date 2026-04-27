@@ -4,11 +4,12 @@
 
 import { checkAuth, logout, toggleAuthView, submitLogin, submitRegister, openPasswordManagement, loadCaptcha } from './features/auth.js';
 import { togglePasswordVisibility } from './core/ui.js';
-import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, submitReservation } from './features/dashboard.js';
+import { loadDashboard, openModal, closeModal, toggleAllDay, openSpaceModal, editSpace, deleteSpace, closeSpaceModal, saveNewSpace, submitReservation, generateNewTelegramCode, requestUnlinkTelegram } from './features/dashboard.js';
 import { loadReservations, renderReservations, updateReservationStatus, cancelReservation, changeReservationsLimit } from './features/reservations.js';
 import { loadCalendar } from './features/calendar.js';
-import { loadUsers, changeUsersLimit, toggleUserStatus, changeUserRole, generateResetLink, copyResetLink, loadLogs, changeLogsLimit } from './features/admin.js';
+import { loadUsers, changeUsersLimit, toggleUserStatus, changeUserRole, generateResetLink, copyResetLink, loadLogs, changeLogsLimit, adminUnlinkTelegram } from './features/admin.js';
 import { initChat, destroyChat, toggleChat, handleChatKey, sendChatMessage } from './features/chat.js';
+import { initNotifications } from './core/notifications.js';
 
 // ======= ENRUTADOR SPA =======
 export function navigate(view) {
@@ -49,6 +50,8 @@ window.deleteSpace = deleteSpace;
 window.closeSpaceModal = closeSpaceModal;
 window.saveNewSpace = saveNewSpace;
 window.submitReservation = submitReservation;
+window.generateNewTelegramCode = generateNewTelegramCode;
+window.requestUnlinkTelegram = requestUnlinkTelegram;
 
 window.loadReservations = loadReservations;
 window.renderReservations = renderReservations;
@@ -66,6 +69,7 @@ window.generateResetLink = generateResetLink;
 window.copyResetLink = copyResetLink;
 window.loadLogs = loadLogs;
 window.changeLogsLimit = changeLogsLimit;
+window.adminUnlinkTelegram = adminUnlinkTelegram;
 
 window.initChat = initChat;
 window.destroyChat = destroyChat;
@@ -74,7 +78,7 @@ window.handleChatKey = handleChatKey;
 window.sendChatMessage = sendChatMessage;
 
 // ======= INICIALIZACIÓN =======
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     // Listeners de auth — evita race condition en producción con onclick en HTML
     document.getElementById('btn-login-submit')?.addEventListener('click', submitLogin);
     document.getElementById('btn-register-submit')?.addEventListener('click', submitRegister);
@@ -82,5 +86,6 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('link-go-register')?.addEventListener('click', (e) => { e.preventDefault(); toggleAuthView('register'); });
     document.getElementById('link-go-login')?.addEventListener('click', () => toggleAuthView('login'));
 
-    checkAuth();
+    await checkAuth();
+    initNotifications();
 });

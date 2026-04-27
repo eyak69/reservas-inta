@@ -59,3 +59,15 @@ export function setIdleInterval(i) { idleInterval = i; }
 // Control de modales encadenados
 export let confirmCleanupTimeout = null;
 export function setConfirmCleanupTimeout(t) { confirmCleanupTimeout = t; }
+
+// Usuario (Helpers de persistencia)
+export function getCurrentUser() {
+    const userStr = localStorage.getItem('user');
+    try {
+        return userStr ? JSON.parse(userStr) : null;
+    } catch (e) {
+        return null;
+    }
+}
+// Forzar exportación explícita (Regla 1)
+export { getCurrentUser as getUser };

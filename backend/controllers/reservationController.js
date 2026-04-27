@@ -1,5 +1,7 @@
 const pool = require('../config/db');
 const logActivity = require('../utils/logger');
+const { sendNotificationEvent } = require('../services/notificationService');
+const { formatHumanDate, formatHumanTime } = require('../services/telegramService');
 
 // Obtener todas las reservas (Admin) con paginación y filtros
 const getAllReservations = async (req, res) => {
@@ -178,6 +180,21 @@ const createReservation = async (req, res) => {
             [user_id, space_id, start_time, end_time, 'pendiente', comments] // empiezar pendientes por defecto
         );
         logActivity(user_id, 'CREATE_RESERVATION', 'Reserva', result.insertId, space_id, { start_time, end_time }, req.ip);
+
+        // Notificar a los admins (Regla 12)
+        const [[uData]] = await pool.query('SELECT name FROM users WHERE id = ?', [user_id]);
+        const [[sData]] = await pool.query('SELECT name FROM spaces WHERE id = ?', [space_id]);
+        const motivoStr = comments ? `\n📝 Motivo: ${comments}` : '';
+        const fechaHumana = formatHumanDate(start_time);
+        const rangoHorario = `${formatHumanTime(start_time)} a ${formatHumanTime(end_time)}`;
+        
+        await sendNotificationEvent({
+            title: 'Nueva Reserva Pendiente',
+            message: `👤 Usuario: ${uData.name}\n📍 Espacio: ${sData.name}\n📅 Fecha: ${fechaHumana}\n⏰ Horario: ${rangoHorario} hs${motivoStr}`,
+            toAdmins: true,
+            type: 'info'
+        });
+
         res.status(201).json({ message: 'Reserva creada exitosamente', id: result.insertId });
     } catch (error) {
         res.status(500).json({ message: 'Error creando reserva', error: error.message });
@@ -190,11 +207,23 @@ const updateReservationStatus = async (req, res) => {
     try {
         await pool.query('UPDATE reservations SET status = ? WHERE id = ?', [status, req.params.id]);
 
-        // Obtener space_id para el log
-        const [resRows] = await pool.query('SELECT space_id FROM reservations WHERE id = ?', [req.params.id]);
+        // Obtener space_id y user_id para el log y notificación
+        const [resRows] = await pool.query('SELECT space_id, user_id FROM reservations WHERE id = ?', [req.params.id]);
         const rSpaceId = resRows.length ? resRows[0].space_id : null;
+        const targetUserId = resRows.length ? resRows[0].user_id : null;
 
         logActivity(req.user.id, 'UPDATE_RESERVATION_STATUS', 'Reserva', req.params.id, rSpaceId, { status }, req.ip);
+
+        // Notificar al usuario vía Telegram (Regla 12)
+        if (targetUserId) {
+            const emoji = status === 'aprobada' ? '✅' : '❌';
+            await sendNotificationEvent({
+                userId: targetUserId,
+                title: `Reserva ${status.toUpperCase()}`,
+                message: `${emoji} Tu reserva #${req.params.id} ha sido ${status.toUpperCase()}.`,
+                type: status === 'aprobada' ? 'success' : 'error'
+            });
+        }
 
         res.json({ message: `Reserva actualizada a estado: ${status} ` });
     } catch (error) {
@@ -215,6 +244,14 @@ const cancelReservation = async (req, res) => {
 
         await pool.query('UPDATE reservations SET status = "cancelada" WHERE id = ?', [req.params.id]);
         logActivity(req.user.id, 'CANCEL_RESERVATION', 'Reserva', req.params.id, rows[0].space_id, {}, req.ip);
+
+        // Notificar al dueño de la reserva
+        await sendNotificationEvent({
+            userId: rows[0].user_id,
+            title: 'Reserva Cancelada',
+            message: `🚫 Tu reserva #${req.params.id} ha sido CANCELADA.`,
+            type: 'warning'
+        });
 
         res.json({ message: 'Reserva cancelada' });
     } catch (error) {

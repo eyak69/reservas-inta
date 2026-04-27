@@ -341,154 +341,58 @@ RECORDATORIO FINAL: Sé conciso, no repitas lo que ya dijiste y usá siempre el 
 
 // ─── Handler principal ─────────────────────────────────────────────────────────
 
+const chatService = require('../services/chatService');
+
+// ... (resto de imports se mantienen)
+
 const sendMessage = async (req, res) => {
     const { message } = req.body;
     const user   = req.user;
     const userIp = req.ip;
     const reqId  = Math.random().toString(36).slice(2, 8).toUpperCase();
 
-    // Sanitización básica (Regla 10): Trim y remoción de tags HTML para evitar XSS/Inyecciones
-    const cleanMessage = (message || '').toString()
-        .replace(/<[^>]*>?/gm, '') // Quitar HTML
-        .trim();
-
-    if (cleanMessage.length === 0) {
-        return res.status(400).json({ message: 'El mensaje no puede estar vacío.' });
-    }
+    const cleanMessage = (message || '').toString().replace(/<[^>]*>?/gm, '').trim();
+    if (cleanMessage.length === 0) return res.status(400).json({ message: 'El mensaje no puede estar vacío.' });
 
     const session = await getSession(user.id);
-
-    console.log(`[${ts()}] [Chat:${reqId}] ► ENTRADA | usuario: ${user.email} (${user.role}) | IP: ${userIp} | memoria: ${session.history.length / 2} pares`);
-    console.log(`[${ts()}] [Chat:${reqId}] ► MENSAJE: "${cleanMessage.slice(0, 120)}${cleanMessage.length > 120 ? '...' : ''}"`);
-
-    const t0 = Date.now();
+    console.log(`[${ts()}] [Chat:${reqId}] ► ENTRADA | usuario: ${user.email} | memoria: ${session.history.length / 2} pares`);
 
     try {
-        const systemPrompt = await buildSystemPrompt(user, cleanMessage);
+        // ─── Procesamiento con el Servicio Centralizado (Regla 12) ──────────────────
+        const { text: aiResponseText, history: updatedHistory } = await chatService.processMessage(
+            user.id, 
+            user.role, 
+            userIp, 
+            cleanMessage, 
+            session.history
+        );
 
-        console.log(`[${ts()}] [Chat:${reqId}] ── SYSTEM PROMPT (${user.role}) ──────────────────`);
-        console.log(systemPrompt);
-        console.log(`[${ts()}] [Chat:${reqId}] ────────────────────────────────────────────────`);
+        // Enviar respuesta al cliente inmediatamente para mejorar UX (Regla 11)
+        res.json({ response: aiResponseText });
 
-        // ─── Poda de Contexto (Regla 11: Resiliencia) ────────────────────────────────
-        // Solo mantenemos los últimos 6 mensajes del historial + el actual
-        // Y eliminamos resultados de herramientas de turnos antiguos para ahorrar tokens
-        const prunedHistory = session.history.slice(-12); // 6 pares aprox
-        
-        const contents = [
-            ...prunedHistory.map((turn, idx) => {
-                // Si el turno es muy viejo (no es de los últimos 4), le quitamos el peso de tool results
-                const isOld = idx < prunedHistory.length - 4;
-                return {
-                    role: turn.role,
-                    parts: [{ text: isOld ? `[Información antigua omitida para ahorrar espacio]` : turn.text }]
-                };
-            }),
-            { role: 'user', parts: [{ text: cleanMessage }] }
-        ];
+        // Tareas de fondo (Logs y Memoria)
+        try {
+            await logChatMessage({ userId: user.id, sessionId: reqId, role: 'user', message: cleanMessage });
+            await logChatMessage({ userId: user.id, sessionId: reqId, role: 'model', message: aiResponseText });
 
-        console.log(`[${ts()}] [Chat:${reqId}] ── CONTENIDO ENVIADO (Pruned) ─────────────────`);
-        contents.forEach((c, i) => {
-            const texto = c.parts?.map(p => p.text || (p.functionCall ? `[tool_call: ${p.functionCall.name}]` : (p.functionResponse ? `[tool_result: ${p.functionResponse.name}]` : '[part]'))).join(' ') || '';
-            console.log(`  [${i}] ${c.role}: ${texto.slice(0, 200)}${texto.length > 200 ? '...' : ''}`);
-        });
-        console.log(`[${ts()}] [Chat:${reqId}] ────────────────────────────────────────────────`);
-
-        let { result, entry: activeEntry } = await generateWithFallback(contents, systemPrompt, user.role);
-        console.log(`[${ts()}] [Chat:${reqId}] ✓ Modelo seleccionado: ${activeEntry.provider}/${activeEntry.model}`);
-
-        // Agentic loop: ejecutar tools hasta respuesta final en texto
-        let iterations  = 0;
-        const MAX_ITERATIONS = 6;
-        const toolsCalled = []; // acumular todas las tools del ciclo completo
-        let tokensInput   = 0;
-        let tokensOutput  = 0;
-
-        while (iterations < MAX_ITERATIONS) {
-            iterations++;
-
-            if (result.functionCalls.length === 0) break;
-
-            const toolNames = result.functionCalls.map(fc => fc.name).join(', ');
-            console.log(`[${ts()}] [Chat:${reqId}] ⚙ Turno ${iterations} — tools: [${toolNames}] args: ${JSON.stringify(result.functionCalls.map(fc => fc.args))}`);
-            toolsCalled.push(...result.functionCalls.map(fc => fc.name));
-
-            const toolResults = await Promise.all(
-                result.functionCalls.map(async ({ name, args }) => {
-                    const t1 = Date.now();
-                    const toolResult = await executeTool(name, args, user.id, user.role, userIp);
-                    const ok = !toolResult.error;
-                    console.log(`[${ts()}] [Chat:${reqId}]   ${ok ? '✓' : '✗'} tool "${name}" → ${ok ? 'OK' : 'ERROR: ' + toolResult.error} (${Date.now() - t1}ms)`);
-                    return { name, response: toolResult };
-                })
-            );
-
-            contents.push({
-                role: 'model',
-                parts: result.functionCalls.map(fc => ({ functionCall: { name: fc.name, args: fc.args } }))
-            });
-            contents.push({
-                role: 'tool',
-                parts: toolResults.map(tr => ({ functionResponse: { name: tr.name, response: tr.response } }))
-            });
-
-            console.log(`[${ts()}] [Chat:${reqId}] ── CONTENIDO TURNO ${iterations + 1} ────────────────────`);
-            contents.slice(-2).forEach((c, i) => {
-                const texto = c.parts?.map(p =>
-                    p.text || (p.functionCall ? `[tool_call: ${p.functionCall.name}]` :
-                    (p.functionResponse ? `[tool_result: ${p.functionResponse.name} → ${JSON.stringify(p.functionResponse.response).slice(0, 150)}]` : '[part]'))
-                ).join(' ') || '';
-                console.log(`  [-${2 - i}] ${c.role}: ${texto.slice(0, 300)}${texto.length > 300 ? '...' : ''}`);
-            });
-            console.log(`[${ts()}] [Chat:${reqId}] ────────────────────────────────────────────────`);
-
-            ({ result } = await generateWithFallback(contents, systemPrompt, user.role, activeEntry));
+            session.history.push({ role: 'user', text: cleanMessage });
+            session.history.push({ role: 'model', text: aiResponseText });
+            if (session.history.length > MAX_MEMORY * 2) {
+                session.history = session.history.slice(-MAX_MEMORY * 2);
+            }
+        } catch (bgError) {
+            console.error(`[${ts()}] [Chat:${reqId}] Error en tareas de fondo:`, bgError.message);
         }
-
-        // Extraer tokens de la respuesta final (Gemini los devuelve en usageMetadata)
-        const usage = result.raw?.usageMetadata || result.raw?.usage;
-        if (usage) {
-            tokensInput  = usage.promptTokenCount     || usage.prompt_tokens     || 0;
-            tokensOutput = usage.candidatesTokenCount || usage.completion_tokens || 0;
-        }
-
-        if (!result.text) {
-            console.warn(`[${ts()}] [Chat:${reqId}] ⚠ Sin texto en respuesta final | functionCalls pendientes: ${result.functionCalls.length}`);
-        }
-
-        const rawReply   = result.text || 'No pude generar una respuesta. Intentá de nuevo.';
-        const { cleanText: replyText, meta } = extractMeta(rawReply);
-        if (meta) console.log(`[${ts()}] [Chat:${reqId}] 🔖 Meta capturado:`, JSON.stringify(meta));
-        else if (rawReply !== replyText) console.log(`[${ts()}] [Chat:${reqId}] ⚠ Sin meta — raw tenía diferencias`);
-        else console.log(`[${ts()}] [Chat:${reqId}] ⚠ Sin meta en respuesta`);
-        const durationMs = Date.now() - t0;
-        const modelLabel = `${activeEntry.provider}/${activeEntry.model}`;
-
-        // Guardar en memoria — si hay meta, actualizamos pendingContext; si no, lo limpiamos
-        saveToSession(user.id, message.trim(), replyText, meta || {});
-
-        // Aprendizaje: registrar éxito o corrección (fire and forget)
-        if (isCorrection(cleanMessage) && session.pendingContext?.accion) {
-            recordCorrection(cleanMessage, actionTypeFromTools(toolsCalled));
-        } else if (toolsCalled.length) {
-            recordSuccess(cleanMessage, replyText, toolsCalled);
-        }
-
-        // Persistir en BD (fire and forget — no bloqueamos la respuesta)
-        logChatMessage({ userId: user.id, sessionId: reqId, role: 'user',  message: cleanMessage, systemPrompt: null,         modelUsed: modelLabel, tokensInput, tokensOutput: 0, toolsCalled: [], durationMs });
-        logChatMessage({ userId: user.id, sessionId: reqId, role: 'model', message: replyText,      systemPrompt,               modelUsed: modelLabel, tokensInput: 0, tokensOutput,    toolsCalled,     durationMs });
-
-        console.log(`[${ts()}] [Chat:${reqId}] ◄ RESPUESTA (${durationMs}ms, ${iterations} turno/s, tokens: ${tokensInput}▶${tokensOutput}, tools: [${toolsCalled.join(',')||'ninguna'}]): "${replyText.slice(0, 120)}${replyText.length > 120 ? '...' : ''}"`);
-
-        res.json({ reply: replyText });
 
     } catch (error) {
-        console.error(`[${ts()}] [Chat:${reqId}] ❌ Error CRÍTICO en sendMessage:`);
-        console.error(error.stack || error);
-        res.status(500).json({ 
-            message: 'Error al procesar tu mensaje. Intentá de nuevo.',
-            debug: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        console.error(`[${ts()}] [Chat:${reqId}] ✗ Error en proceso IA:`, error);
+        // Si no se envió respuesta aún, enviar error
+        if (!res.headersSent) {
+            res.status(500).json({ 
+                message: 'Error al procesar tu mensaje. Intentá de nuevo.',
+                debug: error.message
+            });
+        }
     }
 };
 

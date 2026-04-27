@@ -60,6 +60,23 @@ function renderUsers(data, container) {
                     </span>
                 </div>
             </div>
+            
+            <!-- Telegram Status Area -->
+            <div class="flex items-center justify-between bg-black/20 rounded-lg p-2 mb-3 border border-white/5">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm ${u.telegram_linked ? 'text-emerald-500' : 'text-slate-600'}">smart_toy</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tight ${u.telegram_linked ? 'text-emerald-500' : 'text-slate-600'}">
+                        ${u.telegram_linked ? 'Telegram Vinculado' : 'Sin Vincular'}
+                    </span>
+                </div>
+                ${u.telegram_linked ? `
+                    <button onclick="adminUnlinkTelegram(${u.id}, '${escapeHTML(u.name)}')" title="Desvincular Telegram"
+                        class="text-[9px] font-black text-red-400/60 hover:text-red-400 uppercase tracking-widest transition-colors">
+                        Desvincular
+                    </button>
+                ` : ''}
+            </div>
+
             <div class="flex justify-end gap-2 mt-auto">
                 ${u.id !== currentUser.id ? `
                     <button onclick="toggleUserStatus(${u.id}, ${u.is_active})" title="${u.is_active ? 'Suspender' : 'Activar'}"
@@ -192,6 +209,24 @@ export function copyResetLink() {
     input.select();
     navigator.clipboard.writeText(input.value);
     showToast('¡Link copiado al portapapeles!', 'success');
+}
+
+export async function adminUnlinkTelegram(userId, userName) {
+    const ok = await showConfirm(`¿Estás seguro de que querés desvincular la cuenta de Telegram de <strong>${userName}</strong>?`);
+    if (!ok) return;
+
+    try {
+        const res = await apiFetch(`${API_URL}/users/${userId}/external-identity/telegram`, { method: 'DELETE' });
+        if (res.ok) {
+            showToast('Vínculo de Telegram eliminado', 'success');
+            loadUsers(currentUsersPage);
+        } else {
+            const data = await res.json();
+            showToast(data.message || 'Error al desvincular');
+        }
+    } catch (e) {
+        showToast('Error de red al desvincular Telegram');
+    }
 }
 
 // ============ AUDITORÍA / LOGS ============

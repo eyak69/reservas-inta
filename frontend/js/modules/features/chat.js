@@ -2,19 +2,34 @@
 // Widget de chat con IA integrado como módulo ES6.
 // Se muestra solo cuando hay sesión activa y se inicializa desde main.js.
 
-import { API_URL } from '../core/api.js';
+import { API_URL, apiFetch } from '../core/api.js';
 
 let isOpen = false;
 let isSending = false;
 
 export function initChat() {
     const widget = document.getElementById('chat-widget');
-    if (!widget) {
-        console.error('Chat Widget no encontrado en el DOM');
-        return;
-    }
+    if (!widget) return;
     widget.style.setProperty('display', 'block', 'important');
-    console.log('✅ Chat Asistente Inicializado');
+    renderChatButton();
+    console.log('✅ Chat Asistente Inicializado en Header');
+}
+
+export function renderChatButton() {
+    const actions = document.getElementById('header-actions');
+    if (!actions) return;
+    let chatBtn = document.getElementById('btn-chat-toggle');
+    if (!chatBtn) {
+        chatBtn = document.createElement('button');
+        chatBtn.id = 'btn-chat-toggle';
+        // Diseño de "botón" real con fondo y sombra esmeralda
+        chatBtn.className = 'size-10 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center text-emerald-500 shadow-lg shadow-emerald-500/5 hover:bg-emerald-500/20 transition-all active:scale-95';
+        chatBtn.title = 'Asistente IA';
+        chatBtn.onclick = () => toggleChat();
+        const logoutBtn = actions.querySelector('button[onclick="logout()"]');
+        actions.insertBefore(chatBtn, logoutBtn);
+    }
+    chatBtn.innerHTML = `<span class="material-symbols-outlined text-[22px]" id="chat-toggle-icon">smart_toy</span>`;
 }
 
 export function destroyChat() {
@@ -29,13 +44,7 @@ export function destroyChat() {
     if (icon)  icon.textContent = 'smart_toy';
 
     // Limpiar memoria en el servidor
-    const token = localStorage.getItem('token');
-    if (token) {
-        fetch('/api/chat/clear', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        }).catch(() => {});
-    }
+    apiFetch(`${API_URL}/chat/clear`, { method: 'POST' }).catch(() => {});
 }
 
 export function toggleChat() {
@@ -75,38 +84,24 @@ export async function sendChatMessage() {
     const message = input?.value.trim();
     if (!message) return;
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-        appendBubble('No tenés sesión activa. Por favor iniciá sesión.', 'assistant');
-        return;
+    isSending = true;
+    if (sendBtn) sendBtn.disabled = true;
+    if (input) {
+        input.value = '';
+        input.style.height = 'auto';
     }
 
-    isSending = true;
-    sendBtn.disabled = true;
-    input.value = '';
-    input.style.height = 'auto';
-
     appendBubble(message, 'user');
-
     const typingId = appendBubble('Escribiendo...', 'typing');
 
     try {
-        const res = await fetch(`${API_URL}/chat/message`, {
+        const res = await apiFetch(`${API_URL}/chat/message`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ message }) // el backend maneja la memoria
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
         });
 
         removeBubble(typingId);
-
-        if (res.status === 401 || res.status === 403) {
-            appendBubble('Tu sesión expiró. Por favor iniciá sesión nuevamente.', 'assistant');
-            return;
-        }
-
         const data = await res.json();
 
         if (!res.ok) {
@@ -114,11 +109,13 @@ export async function sendChatMessage() {
             return;
         }
 
-        appendBubble(data.reply, 'assistant');
+        // Sincronizado con data.response del backend
+        appendBubble(data.response, 'assistant');
 
-    } catch {
+    } catch (err) {
         removeBubble(typingId);
-        appendBubble('No pude conectarme al servidor. Verificá tu conexión.', 'assistant');
+        console.error('❌ Error crítico en Chat:', err);
+        appendBubble('No pude conectar con el asistente. Por favor, reintentá.', 'assistant');
     } finally {
         isSending = false;
         if (sendBtn) sendBtn.disabled = false;

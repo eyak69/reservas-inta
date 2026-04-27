@@ -21,7 +21,9 @@
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.0",
     "openai": "^6.34.0",
+    "socket.io": "^4.8.3",
     "svg-captcha": "^1.4.0",
+    "telegraf": "^4.16.3",
     "xss": "^1.0.15"
   }
 }

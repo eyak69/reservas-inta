@@ -22,10 +22,19 @@ async function runMigrations() {
                 is_active           BOOLEAN DEFAULT TRUE,
                 reset_token         VARCHAR(255) NULL,
                 reset_token_expiry  DATETIME NULL,
+                link_token          VARCHAR(20) UNIQUE NULL,
+                link_token_expiry   DATETIME NULL,
                 created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
+        // Evolución de la tabla users (Regla 14)
+        for (const col of [
+            'ADD COLUMN link_token        VARCHAR(20) UNIQUE NULL AFTER reset_token_expiry',
+            'ADD COLUMN link_token_expiry DATETIME NULL AFTER link_token'
+        ]) {
+            try { await conn.query(`ALTER TABLE users ${col}`); } catch (e) { /* ya existe */ }
+        }
 
         // ── 2. Tabla spaces ───────────────────────────────────────────────────
         await conn.query(`
@@ -141,6 +150,35 @@ async function runMigrations() {
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 INDEX idx_user_chat (user_id, created_at DESC),
                 INDEX idx_session   (session_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // ── 8. Tabla external_identities ─────────────────────────────────────
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS external_identities (
+                id           INT AUTO_INCREMENT PRIMARY KEY,
+                user_id      INT NOT NULL,
+                provider     ENUM('telegram') NOT NULL,
+                external_id  VARCHAR(100) NOT NULL,
+                created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_ext_user (provider, external_id),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // ── 9. Tabla notifications (Regla 1) ──────────────────────────────────
+        await conn.query(`
+            CREATE TABLE IF NOT EXISTS notifications (
+                id         INT AUTO_INCREMENT PRIMARY KEY,
+                user_id    INT NULL,
+                title      VARCHAR(255) NOT NULL,
+                message    MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                type       VARCHAR(50) DEFAULT 'info',
+                is_read    BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_notif (user_id, is_read),
+                INDEX idx_recent_notif (created_at DESC)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 

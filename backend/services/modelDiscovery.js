@@ -9,6 +9,7 @@ const PROVIDER_SPEED = { cerebras: 2000, groq: 800, gemini: 200, openai: 100 };
 // Modelos excluidos: audio, TTS, embeddings, guardrails, moderación, visión pura, etc.
 const EXCLUDE_PATTERNS = [
     /whisper/i, /tts/i, /embed/i, /guard/i, /safeguard/i,
+    /audio/i, /realtime/i, /transcribe/i, /diarize/i,
     /arabic/i, /orpheus/i, /allam/i, /compound/i, /prompt-guard/i,
     /vision/i, /imagen/i, /aqa/i,
 ];

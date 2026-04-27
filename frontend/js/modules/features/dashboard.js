@@ -11,7 +11,17 @@ import { loadReservations } from './reservations.js';
 
 export async function loadDashboard() {
     const main = document.getElementById('main-content');
-    const user = JSON.parse(localStorage.getItem('user'));
+    let user = JSON.parse(localStorage.getItem('user'));
+
+    // Actualizar perfil para obtener estado de Telegram
+    try {
+        const profileRes = await apiFetch(`${API_URL}/users/profile`);
+        if (profileRes && profileRes.ok) {
+            const userData = await profileRes.json();
+            localStorage.setItem('user', JSON.stringify(userData));
+            user = userData;
+        }
+    } catch (e) { console.error('Error actualizando perfil:', e); }
 
     try {
         const res = await apiFetch(`${API_URL}/spaces`);
@@ -21,51 +31,145 @@ export async function loadDashboard() {
     } catch (e) { }
 
     const mySpaces = getMySpaces();
+    
+    // Tarjetas de Espacios con Estética Premium
     let spacesHtml = mySpaces.map(s => `
-        <div class="group relative h-64 sm:h-72 rounded-2xl overflow-hidden cursor-pointer" onclick="openModal(${s.id})">
-            <img class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                 src="${s.image_url || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUyOTNiIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjOTRBMzI4IiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RXNwYWNpbzwvdGV4dD48L3N2Zz4='}"
+        <div class="group relative h-72 rounded-3xl overflow-hidden cursor-pointer shadow-2xl transition-all duration-500 hover:shadow-emerald-500/10" onclick="openModal(${s.id})">
+            <img class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                 src="${s.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=600'}"
                  alt="${s.name}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUyOTNiIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSIjOTRBMzI4IiBkeT0iLjNlbSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RXNwYWNpbzwvdGV4dD48L3N2Zz4='">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-            <div class="absolute bottom-0 left-0 right-0 p-5 glass-card border-0 border-t border-white/10 m-3 rounded-xl flex justify-between items-center">
-                <div><p class="font-bold text-sm text-white">${s.name}</p></div>
-                <div class="flex gap-2">
+            <div class="absolute inset-0 bg-gradient-to-t from-obsidian-navy via-obsidian-navy/20 to-transparent"></div>
+            
+            <div class="absolute bottom-0 left-0 right-0 p-3 m-2 md:p-4 md:m-3 rounded-2xl glass-card flex justify-between items-center gap-2 transform transition-transform duration-500 group-hover:translate-y-[-4px] overflow-hidden">
+                <div class="flex flex-col min-w-0">
+                    <p class="font-bold text-sm md:text-base text-white tracking-tight truncate">${escapeHTML(s.name)}</p>
+                    <p class="text-[9px] md:text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-0.5 truncate">Espacio Verificado</p>
+                </div>
+                <div class="flex gap-1 shrink-0">
                     ${user.role === 'admin' ? `
-                    <button onclick="event.stopPropagation(); editSpace(${s.id})" class="text-slate-300 hover:text-primary transition-colors z-10 p-1"><span class="material-symbols-outlined text-[20px]">edit</span></button>
-                    <button onclick="event.stopPropagation(); deleteSpace(${s.id})" class="text-slate-300 hover:text-red-500 transition-colors z-10 p-1"><span class="material-symbols-outlined text-[20px]">delete</span></button>
-                    ` : `<span class="material-symbols-outlined text-primary">verified</span>`}
+                    <button onclick="event.stopPropagation(); editSpace(${s.id})" class="size-7 md:size-8 rounded-full bg-white/5 flex items-center justify-center text-slate-300 hover:bg-emerald-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[16px] md:text-[18px]">edit</span></button>
+                    <button onclick="event.stopPropagation(); deleteSpace(${s.id})" class="size-7 md:size-8 rounded-full bg-white/5 flex items-center justify-center text-slate-300 hover:bg-red-500 hover:text-white transition-all"><span class="material-symbols-outlined text-[16px] md:text-[18px]">delete</span></button>
+                    ` : `<div class="size-7 md:size-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner"><span class="material-symbols-outlined text-[16px] md:text-[18px]">verified</span></div>`}
                 </div>
             </div>
         </div>
     `).join('');
 
     main.innerHTML = `
-        <section>
-            <h2 class="text-sm font-medium text-slate-400">Hola, ${user.name.split(' ')[0]}</h2>
-            <p class="text-2xl font-bold">Explora tus espacios</p>
-        </section>
-        <section class="flex gap-4">
-            <button onclick="openModal()" class="flex-1 bg-gradient-to-r from-primary to-blue-400 p-[1px] rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">
-                <div class="bg-background-dark/20 backdrop-blur-sm rounded-[calc(0.75rem-1px)] py-4 flex items-center justify-center gap-3">
-                    <span class="material-symbols-outlined text-white">add_circle</span>
-                    <span class="text-white font-bold tracking-wide">Nueva Reserva</span>
+        <!-- Welcome Header -->
+        <header class="flex items-center justify-between">
+            <div class="space-y-1">
+                <p class="text-2xl md:text-3xl font-black text-white tracking-tight">Bienvenido, ${user.name.split(' ')[0]}</p>
+            </div>
+            ${user.telegram_linked ? `
+                <div class="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                    <span class="material-symbols-outlined text-emerald-500 text-sm">smart_toy</span>
+                    <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Bot Activo</span>
                 </div>
-            </button>
-            ${user.role === 'admin' ? `
-            <button onclick="openSpaceModal()" class="flex-1 bg-slate-800 p-[1px] rounded-xl shadow-lg hover:scale-[1.02] transition-transform">
-                <div class="glass flex items-center justify-center gap-3 py-4 rounded-[calc(0.75rem-1px)]">
-                    <span class="material-symbols-outlined text-primary">add_home</span>
-                    <span class="text-slate-100 font-bold tracking-wide">Crear Espacio</span>
+            ` : ''}
+        </header>
+
+        <!-- Telegram Connection Banner (Solo si NO está vinculado) -->
+        ${!user.telegram_linked ? `
+        <section class="mt-6">
+            <div class="glass-card p-4 flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden group border-white/5">
+                <div class="flex items-center gap-4 relative z-10">
+                    <div class="size-10 rounded-xl bg-slate-800/50 flex items-center justify-center text-emerald-500 shadow-inner">
+                        <span class="material-symbols-outlined text-[20px]">smart_toy</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white tracking-tight">Asistente de Telegram</h3>
+                        <p class="text-[11px] text-slate-400">Gestioná reservas por voz o texto.</p>
+                    </div>
                 </div>
-            </button>` : ''}
-        </section>
-        <section class="space-y-4">
-            <h3 class="text-lg font-bold">Espacios Disponibles</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                ${spacesHtml || '<p class="text-slate-500 text-sm">No hay espacios disponibles.</p>'}
+                
+                <div class="flex items-center gap-4 relative z-10 w-full md:w-auto justify-between md:justify-end">
+                    <div class="bg-obsidian-navy/40 px-3 py-1.5 rounded-xl border border-white/5 flex items-center gap-3">
+                        <span class="text-[9px] uppercase font-bold text-emerald-500/70 tracking-widest">Código</span>
+                        <span class="text-sm font-mono font-black text-white tracking-widest" id="tg-link-code">${user.link_token || '---'}</span>
+                    </div>
+                    <button onclick="window.open('https://t.me/TuBot_Reserva_INTA', '_blank')" class="px-5 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.15em] hover:bg-emerald-500 hover:text-white transition-all shadow-lg border border-emerald-500/30">
+                        Conectar
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2 text-center">
+                <button onclick="generateNewTelegramCode()" class="text-[9px] text-slate-600 font-bold uppercase hover:text-emerald-500 transition-colors tracking-widest">Generar Nuevo Código</button>
             </div>
         </section>
+        ` : ''}
+
+        <!-- Main Actions -->
+        <section class="${user.role === 'admin' ? 'grid grid-cols-1 sm:grid-cols-2' : 'flex'} gap-4 mt-8">
+            <button onclick="openModal()" class="flex-1 btn-jewel py-5 rounded-2xl flex items-center justify-center gap-3 shadow-2xl">
+                <span class="material-symbols-outlined text-[24px]">add_circle</span>
+                <span class="text-base font-black tracking-wide uppercase">Nueva Reserva</span>
+            </button>
+            ${user.role === 'admin' ? `
+            <button onclick="openSpaceModal()" class="flex-1 glass-card flex items-center justify-center gap-3 py-5 hover:bg-white/5 transition-all border border-white/5">
+                <span class="material-symbols-outlined text-emerald-500">add_home</span>
+                <span class="text-slate-100 font-bold tracking-wide uppercase text-sm">Crear Espacio</span>
+            </button>` : ''}
+        </section>
+
+        <!-- Spaces Grid -->
+        <section class="space-y-6 mt-10">
+            <div class="flex items-center justify-between px-2">
+                <h3 class="text-lg font-black text-white tracking-tight uppercase">Espacios Disponibles</h3>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${mySpaces.length} Salas listas</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${spacesHtml || '<p class="text-slate-500 text-sm italic p-10 glass-card text-center w-full">No hay espacios disponibles para reserva en este momento.</p>'}
+            </div>
+        </section>
+        
+        <div class="h-10"></div> <!-- Spacer -->
     `;
+}
+
+// Lógica de Telegram
+export async function generateNewTelegramCode() {
+    const codeSpan = document.getElementById('tg-link-code');
+    if (codeSpan) codeSpan.innerText = '...';
+    
+    try {
+        const res = await apiFetch(`${API_URL}/users/profile/telegram-token`, { method: 'POST' });
+        if (res && res.ok) {
+            const data = await res.json();
+            if (codeSpan) codeSpan.innerText = data.token;
+            showToast('Nuevo código generado', 'success');
+        } else {
+            showToast('Error generando código');
+            if (codeSpan) codeSpan.innerText = 'ERROR';
+        }
+    } catch (e) {
+        showToast('Error de conexión');
+    }
+}
+
+export async function requestUnlinkTelegram() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const isConfirmed = await showConfirm(`
+        <div class="text-center space-y-4">
+            <p class="text-slate-300">¿Estás seguro de que querés desvincular tu cuenta de Telegram?</p>
+            <p class="text-xs text-slate-500 italic">Perderás el acceso al asistente IA desde la app de mensajería.</p>
+        </div>
+    `);
+    
+    if (!isConfirmed) return;
+
+    try {
+        const res = await apiFetch(`${API_URL}/users/${user.id}/external-identity/telegram`, { method: 'DELETE' });
+        if (res && res.ok) {
+            showToast('Telegram desvinculado', 'success');
+            loadDashboard();
+        } else {
+            const data = await res.json();
+            showToast(data.message || 'Error al desvincular');
+        }
+    } catch (e) {
+        showToast('Error de conexión');
+    }
 }
 
 // --- Modal de Reserva (pertenece al Dashboard aunque también es usado desde otras vistas) ---

@@ -203,7 +203,9 @@ export async function checkAuth() {
             const freshUser = await res.json();
             localStorage.setItem('user', JSON.stringify({
                 id: freshUser.id, name: freshUser.name, email: freshUser.email,
-                role: freshUser.role, avatar_url: freshUser.avatar_url, hasPassword: freshUser.hasPassword
+                role: freshUser.role, avatar_url: freshUser.avatar_url, 
+                hasPassword: freshUser.hasPassword,
+                telegram_linked: freshUser.telegram_linked
             }));
 
             // Ahora si mostramos la App View con datos verificados
@@ -213,6 +215,8 @@ export async function checkAuth() {
 
             const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAxMmM0LjQxMSAwIDgtMy41ODkgOC04cy0zLjU4OS04LTgtOC04IDMuNTg5LTggOHMzLjU4OSA4IDggOHptMC0xNGM0LjQxMSAwIDggMy41ODkgOCA4czMuNTg5IDggOCA4IDgtMy41ODkgOC04cy0zLjU4OS04LTgtOHptMCAxNGMtNC45NjUgMC0xNC40IDMuNjMyLTE0LjQgMTAuOHYuMWgyOC44di0uMWMwLTcuMjY4LTkuNDM1LTEwLjktMTQuNC0xMC45em0tMTIuMyA5YzEtNC41MiA1LjgyNi02LjkgMTIuMy02LjlzMTEuMyAyLjM4IDEyLjMgNi45aC0yNC42eiIvPjwvc3ZnPg==';
             document.getElementById('user-avatar').src = freshUser.avatar_url || defaultAvatar;
+            const headerName = document.getElementById('header-user-name');
+            if (headerName) headerName.innerText = freshUser.name;
 
             const navUsers = document.getElementById('nav-users');
             const navLogs = document.getElementById('nav-logs');
@@ -250,17 +254,17 @@ export async function checkAuth() {
 
 // --- Botón de Seguridad ---
 export function renderSecurityButton(hasPassword) {
-    const header = document.querySelector('header');
-    if (!header) return;
+    const actions = document.getElementById('header-actions');
+    if (!actions) return;
     let secBtn = document.getElementById('btn-security');
     if (!secBtn) {
         secBtn = document.createElement('button');
         secBtn.id = 'btn-security';
-        secBtn.className = 'size-10 glass rounded-full flex items-center justify-center text-slate-100 ml-auto mr-2';
+        secBtn.className = 'size-10 glass rounded-full flex items-center justify-center text-slate-100';
         secBtn.title = 'Seguridad';
         secBtn.onclick = () => openPasswordManagement();
-        const logoutBtn = header.querySelector('button[onclick="logout()"]');
-        header.insertBefore(secBtn, logoutBtn);
+        const logoutBtn = actions.querySelector('button[onclick="logout()"]');
+        actions.insertBefore(secBtn, logoutBtn);
     }
     secBtn.innerHTML = `<span class="material-symbols-outlined text-[22px] ${hasPassword ? 'text-slate-100' : 'text-amber-400 animate-pulse'}">key</span>`;
 }

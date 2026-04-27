@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+process.env.TZ = 'America/Argentina/Buenos_Aires'; // Forzar Zona Horaria Argentina (Regla 8)
 require('dotenv').config();
 
 const helmet = require('helmet');
@@ -13,6 +14,7 @@ const reservationRoutes = require('./routes/reservationRoutes');
 const authRoutes = require('./routes/authRoutes');
 const logRoutes = require('./routes/logRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,6 +46,7 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 
 const runMigrations = require('./db/migrate');
 const { discoverModels, benchmarkModels } = require('./services/modelDiscovery');
+const { initTelegram } = require('./services/telegramService');
 const { refreshModels }  = require('./controllers/chatController');
 const vectorService = require('./services/vectorService');
 
@@ -54,6 +57,7 @@ app.use('/api/spaces', spaceRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Para cualquier otra ruta GET no capturada por las API, devolvemos la SPA del frontend
 app.get('*', (req, res) => {
@@ -69,10 +73,24 @@ async function startServer() {
     await refreshModels();
     await vectorService.ensureCollection(); // Asegurar infraestructura vectorial
     benchmarkModels(); // sin await — corre en background sin bloquear el arranque
+    initTelegram();
 
-    app.listen(PORT, () => {
-      console.log(`[Server] ✓ Backend corriendo en el puerto ${PORT}`);
+    const http = require('http');
+    const { Server } = require('socket.io');
+    const notificationService = require('./services/notificationService');
+
+    const server = http.createServer(app);
+    const io = new Server(server, {
+      cors: { origin: "*" }
     });
+
+    // Inicializar servicio de notificaciones
+    notificationService.initSocket(io);
+
+    server.listen(PORT, () => {
+      console.log(`[Server] ✓ Backend y WebSockets corriendo en el puerto ${PORT}`);
+    });
+    server.timeout = 120000; 
   } catch (error) {
     console.error('[Server] ✗ Error crítico al iniciar:', error);
     process.exit(1); // Abortar si la DB no está lista

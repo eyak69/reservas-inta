@@ -98,12 +98,13 @@ const getAllUsers = async (req, res) => {
         const countSql = `SELECT COUNT(*) as total FROM users ${whereClause}`;
         const [[{ total }]] = await pool.query(countSql, params);
 
-        // Consulta paginada
+        // Consulta paginada con estado de Telegram (Regla 12)
         const sql = `
-            SELECT id, name, email, avatar_url, role, is_active, created_at 
-            FROM users 
+            SELECT u.id, u.name, u.email, u.avatar_url, u.role, u.is_active, u.created_at,
+            (SELECT COUNT(*) FROM external_identities ei WHERE ei.user_id = u.id AND ei.provider = 'telegram') > 0 as telegram_linked
+            FROM users u
             ${whereClause}
-            ORDER BY id DESC 
+            ORDER BY u.id DESC 
             LIMIT ? OFFSET ?
         `;
         const [users] = await pool.query(sql, [...params, limit, offset]);
@@ -122,14 +123,26 @@ const getAllUsers = async (req, res) => {
 // Obtener el perfil del usuario logueado
 const getProfile = async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT id, name, email, avatar_url, role, created_at, password FROM users WHERE id = ?', [req.user.id]);
+        const userId = req.user.id;
+        // Obtenemos datos básicos del usuario
+        const [rows] = await pool.query('SELECT id, name, email, avatar_url, role, created_at, password, link_token FROM users WHERE id = ?', [userId]);
         if (rows.length === 0) return res.status(404).json({ message: 'Usuario no encontrado' });
 
         const user = rows[0];
         const hasPassword = !!user.password;
         delete user.password; // Quitar el hash antes de enviar
 
-        res.json({ ...user, hasPassword });
+        // Verificar si tiene Telegram vinculado
+        const [identities] = await pool.query(
+            'SELECT id FROM external_identities WHERE user_id = ? AND provider = "telegram"',
+            [userId]
+        );
+
+        res.json({ 
+            ...user, 
+            hasPassword, 
+            telegram_linked: identities.length > 0 
+        });
     } catch (error) {
         res.status(500).json({ message: 'Error en perfil.', error: error.message });
     }
@@ -253,6 +266,57 @@ const generateResetToken = async (req, res) => {
     }
 };
 
+/**
+ * Desvincular Telegram de un usuario
+ * Puede ser invocado por un Admin para cualquier usuario, o por un Usuario para sí mismo.
+ */
+const unlinkTelegram = async (req, res) => {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    const adminRole = req.user.role;
+
+    // Solo el Admin puede desvincular a otros. El usuario solo a sí mismo.
+    if (parseInt(id) !== adminId && adminRole !== 'admin') {
+        return res.status(403).json({ message: 'No tienes permiso para desvincular esta cuenta.' });
+    }
+
+    try {
+        const [result] = await pool.query(
+            'DELETE FROM external_identities WHERE user_id = ? AND provider = "telegram"',
+            [id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'No se encontró una vinculación activa de Telegram para este usuario.' });
+        }
+
+        logActivity(adminId, 'UNLINK_TELEGRAM', 'Usuario', id, null, { admin_id: adminId }, req.ip);
+
+        res.json({ message: 'Cuenta de Telegram desvinculada exitosamente.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error desvinculando Telegram.', error: error.message });
+    }
+};
+
+// Generar un token de vinculación para Telegram
+const generateTelegramToken = async (req, res) => {
+    const userId = req.user.id;
+    // Código de 6 caracteres (Ej: 7KLZM2)
+    const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const expiry = new Date();
+    expiry.setMinutes(expiry.getMinutes() + 15); // Expira en 15 minutos
+
+    try {
+        await pool.query(
+            'UPDATE users SET link_token = ?, link_token_expiry = ? WHERE id = ?',
+            [token, expiry, userId]
+        );
+        res.json({ token, expires_at: expiry });
+    } catch (error) {
+        res.status(500).json({ message: 'Error generando token de Telegram.', error: error.message });
+    }
+};
+
 module.exports = {
     googleLoginStart,
     googleLoginCallback,
@@ -261,5 +325,7 @@ module.exports = {
     toggleUserStatus,
     changeUserRole,
     generateResetToken,
-    updatePassword
+    updatePassword,
+    unlinkTelegram,
+    generateTelegramToken
 };
