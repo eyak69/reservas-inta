@@ -25,7 +25,8 @@ const uploadSpaceImage = multer({
 const resizeAndSaveSpaceImage = async (req, res, next) => {
     if (!req.file) return next();
 
-    const dir = 'uploads/spaces';
+    // Usar ruta absoluta basada en __dirname para evitar desajustes con process.cwd() en Docker
+    const dir = path.join(__dirname, '../uploads/spaces');
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
