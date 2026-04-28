@@ -88,7 +88,7 @@ export async function loadDashboard() {
                         <span class="text-[9px] uppercase font-bold text-emerald-500/70 tracking-widest">Código</span>
                         <span class="text-sm font-mono font-black text-white tracking-widest" id="tg-link-code">${user.link_token || '---'}</span>
                     </div>
-                    <button onclick="window.open('https://t.me/TuBot_Reserva_INTA', '_blank')" class="px-5 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.15em] hover:bg-emerald-500 hover:text-white transition-all shadow-lg border border-emerald-500/30">
+                    <button onclick="window.open('https://t.me/intareservas_bot', '_blank')" class="px-5 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.15em] hover:bg-emerald-500 hover:text-white transition-all shadow-lg border border-emerald-500/30">
                         Conectar
                     </button>
                 </div>
