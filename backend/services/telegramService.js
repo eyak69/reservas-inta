@@ -27,14 +27,8 @@ async function getLinkedUser(ctx) {
     return rows.length > 0 ? rows[0].user_id : null;
 }
 
-// Comando de inicio
-bot.start((ctx) => {
-    ctx.reply('¡Hola! Soy el asistente de Reservas INTA. 🤖\n\nPara empezar a usarme, necesito vincular tu cuenta de Telegram con tu usuario de la plataforma.\n\nEscribí: /vincular [tu_codigo]\n\n(Podés obtener tu código en la sección de perfil de la web).');
-});
-
-// Comando de vinculación
-bot.command('vincular', async (ctx) => {
-    const token = ctx.message.text.split(' ')[1];
+// Lógica central de vinculación (soporta /vincular y Deep Linking)
+async function handleLink(ctx, token) {
     if (!token) return ctx.reply('⚠️ Por favor, ingresá el código: /vincular CODIGO123');
 
     try {
@@ -63,6 +57,20 @@ bot.command('vincular', async (ctx) => {
         console.error('[TelegramBot] Error en vinculación:', error);
         ctx.reply('🔥 Hubo un error técnico. Reintentá en unos minutos.');
     }
+}
+
+// Comando de inicio (Soporta Deep Linking: t.me/bot?start=TOKEN)
+bot.start((ctx) => {
+    if (ctx.payload) {
+        return handleLink(ctx, ctx.payload);
+    }
+    ctx.reply('¡Hola! Soy el asistente de Reservas INTA. 🤖\n\nPara empezar a usarme, necesito vincular tu cuenta de Telegram con tu usuario de la plataforma.\n\nEscribí: /vincular [tu_codigo]\n\n(Podés obtener tu código en la sección de perfil de la web).');
+});
+
+// Comando de vinculación manual
+bot.command('vincular', (ctx) => {
+    const token = ctx.message.text.split(' ')[1];
+    return handleLink(ctx, token);
 });
 
 // Manejo de mensajes de texto
