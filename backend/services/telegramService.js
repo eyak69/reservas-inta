@@ -33,8 +33,8 @@ async function handleLink(ctx, token) {
 
     try {
         const [users] = await pool.query(
-            'SELECT id FROM users WHERE link_token = ? AND link_token_expiry > ?',
-            [token, new Date()]
+            'SELECT id FROM users WHERE link_token = ? AND link_token_expiry > NOW()',
+            [token]
         );
 
         if (users.length === 0) {

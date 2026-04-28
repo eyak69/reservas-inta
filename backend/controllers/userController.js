@@ -338,15 +338,13 @@ const generateTelegramToken = async (req, res) => {
     const userId = req.user.id;
     // Código de 6 caracteres (Ej: 7KLZM2)
     const token = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const expiry = new Date();
-    expiry.setMinutes(expiry.getMinutes() + 15); // Expira en 15 minutos
 
     try {
         await pool.query(
-            'UPDATE users SET link_token = ?, link_token_expiry = ? WHERE id = ?',
-            [token, expiry, userId]
+            'UPDATE users SET link_token = ?, link_token_expiry = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id = ?',
+            [token, userId]
         );
-        res.json({ token, expires_at: expiry });
+        res.json({ token, message: 'Token generado' });
     } catch (error) {
         res.status(500).json({ message: 'Error generando token de Telegram.', error: error.message });
     }
